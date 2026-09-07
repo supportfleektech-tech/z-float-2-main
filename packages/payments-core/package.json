@@ -1,0 +1,41 @@
+{
+  "name": "@zfloat/payments-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zfloat/approvals": "workspace:*",
+    "@zfloat/auth": "workspace:*",
+    "@zfloat/config": "workspace:*",
+    "@zfloat/database": "workspace:*",
+    "@zfloat/ledger": "workspace:*",
+    "@zfloat/money": "workspace:*",
+    "@zfloat/notifications": "workspace:*",
+    "@zfloat/providers": "workspace:*",
+    "@zfloat/queue": "workspace:*",
+    "@zfloat/validation": "workspace:*",
+    "cron-parser": "^4.9.0",
+    "drizzle-orm": "^0.36.4",
+    "zod": "^3.23.8",
+    "@zfloat/kyc": "workspace:*",
+    "@zfloat/storage": "workspace:*",
+    "@zfloat/audit": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}

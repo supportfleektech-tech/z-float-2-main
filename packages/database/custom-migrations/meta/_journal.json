@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788368809519,
+      "tag": "0000_eminent_living_tribunal",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788368820650,
+      "tag": "0001_dapper_gravity",
+      "breakpoints": true
+    }
+  ]
+}

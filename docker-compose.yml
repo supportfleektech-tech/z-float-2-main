@@ -1,0 +1,99 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: zfloat
+      POSTGRES_PASSWORD: zfloat_dev_password
+      POSTGRES_DB: zfloat
+    ports:
+      - "5432:5432"
+    volumes:
+      - zf_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zfloat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "60", "1"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - zf_valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      DATABASE_URL: postgres://zfloat:zfloat_dev_password@postgres:5432/zfloat
+      REDIS_URL: redis://valkey:6379
+      APP_BASE_URL: http://localhost:3000
+      DEMO_MODE: "true"
+      SEED_DEMO_DATA: "false"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      MOCK_PROVIDER_BEHAVIOUR: success
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: postgres://zfloat:zfloat_dev_password@postgres:5432/zfloat
+      REDIS_URL: redis://valkey:6379
+      DEMO_MODE: "true"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      MOCK_PROVIDER_BEHAVIOUR: success
+      WORKER_CRON_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  # Standalone outbox relay (C-1). Optional: the worker already embeds the
+  # poller; run this for scale-out. Lease arbitration makes duplicates
+  # impossible — run any number of instances alongside the worker.
+  relay:
+    build:
+      context: .
+      target: relay
+    environment:
+      DATABASE_URL: postgres://zfloat:zfloat_dev_password@postgres:5432/zfloat
+      REDIS_URL: redis://valkey:6379
+      OUTBOX_RELAY_INTERVAL_MS: "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  migrate:
+    build:
+      context: .
+      target: deps
+    command: ["sh", "-c", "cd packages/database && pnpm db:migrate && pnpm db:seed"]
+    environment:
+      DATABASE_URL: postgres://zfloat:zfloat_dev_password@postgres:5432/zfloat
+      SEED_DEMO_DATA: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  zf_pg:
+  zf_valkey:

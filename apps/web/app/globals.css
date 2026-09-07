@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --zf-primary: #0F5BFF;
+  --zf-primary-strong: #083DAF;
+  --zf-ink: #0B1220;
+  --zf-surface: #F7F9FC;
+  --zf-card: #FFFFFF;
+  --zf-border: #E7ECF3;
+  --zf-success: #149447;
+  --zf-warning: #B7791F;
+  --zf-danger: #C53030;
+}
+
+body {
+  @apply bg-surface text-ink antialiased;
+}
+
+.focus-ring {
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+}

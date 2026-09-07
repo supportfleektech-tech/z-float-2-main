@@ -1,0 +1,46 @@
+{
+  "name": "zfloat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Z-float \u2014 Kenya-first business payment operations platform (modular monolith).",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' --filter './services/*' build && pnpm --filter @zfloat/web build",
+    "dev": "pnpm --filter @zfloat/web dev",
+    "dev:worker": "pnpm --filter @zfloat/worker dev",
+    "lint": "eslint . --ext .ts,.tsx,.js --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml,css}\"",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm -r --workspace-concurrency=1 --filter '@zfloat/money' --filter '@zfloat/validation' --filter '@zfloat/ledger' --filter '@zfloat/approvals' --filter '@zfloat/providers' --filter '@zfloat/payments-core' --filter '@zfloat/database' --filter '@zfloat/kyc' --filter '@zfloat/notifications' --filter '@zfloat/auth' --filter '@zfloat/secrets' --filter '@zfloat/storage' --filter '@zfloat/queue' --filter '@zfloat/observability' test",
+    "test:integration": "pnpm -r --workspace-concurrency=1 --filter '@zfloat/approvals' --filter '@zfloat/audit' --filter '@zfloat/ledger' --filter '@zfloat/payments-core' --filter '@zfloat/kyc' test",
+    "test:e2e": "pnpm --filter @zfloat/web test:e2e",
+    "db:generate": "pnpm --filter @zfloat/database db:generate",
+    "db:migrate": "pnpm --filter @zfloat/database db:migrate",
+    "db:seed": "pnpm --filter @zfloat/database db:seed",
+    "db:reset": "pnpm --filter @zfloat/database db:reset",
+    "check:env": "tsx scripts/check-env.ts",
+    "ci:local": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:integration && pnpm --filter @zfloat/web build",
+    "dev:relay": "pnpm --filter @zfloat/outbox-relay dev",
+    "start:relay": "pnpm --filter @zfloat/outbox-relay start",
+    "secrets": "tsx packages/secrets/src/cli.ts",
+    "evidence": "tsx scripts/compliance/collect-evidence.ts",
+    "check:creds": "tsx scripts/check-credentials.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}
