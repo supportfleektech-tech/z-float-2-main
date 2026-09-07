@@ -23,6 +23,9 @@ importers:
       eslint-config-prettier:
         specifier: ^9.1.0
         version: 9.1.2(eslint@8.57.1)
+      next:
+        specifier: ^14.2.15
+        version: 14.2.35(@playwright/test@1.62.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       prettier:
         specifier: ^3.3.0
         version: 3.9.6
@@ -38,6 +41,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
+      '@types/react':
+        specifier: ^18.3.5
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
       '@zfloat/approvals':
         specifier: workspace:*
         version: link:../../packages/approvals
@@ -86,12 +101,21 @@ importers:
       '@zfloat/validation':
         specifier: workspace:*
         version: link:../../packages/validation
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.4(postcss@8.5.26)
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@types/pg@8.23.1)(@types/react@18.3.31)(pg@8.23.0)(react@18.3.1)
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
       next:
         specifier: ^14.2.15
         version: 14.2.35(@playwright/test@1.62.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      postcss:
+        specifier: ^8.4.45
+        version: 8.5.26
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -104,6 +128,12 @@ importers:
       recharts:
         specifier: ^2.12.7
         version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tailwindcss:
+        specifier: ^3.4.10
+        version: 3.4.19(tsx@4.23.13)
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -111,30 +141,6 @@ importers:
       '@playwright/test':
         specifier: ^1.47.0
         version: 1.62.1
-      '@types/node':
-        specifier: ^20.14.0
-        version: 20.19.43
-      '@types/qrcode':
-        specifier: ^1.5.6
-        version: 1.5.6
-      '@types/react':
-        specifier: ^18.3.5
-        version: 18.3.31
-      '@types/react-dom':
-        specifier: ^18.3.0
-        version: 18.3.7(@types/react@18.3.31)
-      autoprefixer:
-        specifier: ^10.4.20
-        version: 10.5.4(postcss@8.5.26)
-      postcss:
-        specifier: ^8.4.45
-        version: 8.5.26
-      tailwindcss:
-        specifier: ^3.4.10
-        version: 3.4.19(tsx@4.23.13)
-      typescript:
-        specifier: ^5.5.4
-        version: 5.9.3
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
