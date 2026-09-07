@@ -1,13 +1,12 @@
 services:
   # PostgreSQL Database
-  - type: pserv
+  - type: postgresql
     name: zfloat-db
     plan: free
     region: oregon
     postgresMajorVersion: 16
     databaseName: zfloat
     user: zfloat
-    # envVars will be auto-generated
 
   # Redis
   - type: redis
@@ -26,18 +25,19 @@ services:
     rootDir: services/worker
     buildCommand: cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/worker build
     startCommand: pnpm --filter @zfloat/worker start
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
         fromDatabase:
           name: zfloat-db
-          property: connectionString
+          property: url
       - key: REDIS_URL
         fromService:
           type: redis
           name: zfloat-redis
-          property: connectionString
+          property: url
       - key: SESSION_SECRET
         generateValue: true
       - key: ENCRYPTION_KEY
@@ -97,18 +97,19 @@ services:
     rootDir: services/outbox-relay
     buildCommand: cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/outbox-relay build
     startCommand: pnpm --filter @zfloat/outbox-relay start
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
         fromDatabase:
           name: zfloat-db
-          property: connectionString
+          property: url
       - key: REDIS_URL
         fromService:
           type: redis
           name: zfloat-redis
-          property: connectionString
+          property: url
       - key: SESSION_SECRET
         generateValue: true
       - key: ENCRYPTION_KEY
