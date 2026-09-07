@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
   });
   const { db } = getDb();
   try {
+    // Use the M-Pesa provider for this webhook endpoint (not the mock)
     const result = await ingestWebhook(db, {
-      provider: registry.get("local-sandbox"),
+      provider: registry.get("mpesa-safaricom"),
       rawBody,
       headers,
     });
