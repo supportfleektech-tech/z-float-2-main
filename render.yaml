@@ -1,0 +1,145 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: zfloat-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: 16
+    databaseName: zfloat
+    user: zfloat
+    # envVars will be auto-generated
+
+  # Redis
+  - type: redis
+    name: zfloat-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+
+  # Worker Service
+  - type: worker
+    name: zfloat-worker
+    plan: free
+    region: oregon
+    repo: https://github.com/supportfleektech-tech/z-float-2-main
+    branch: master
+    rootDir: services/worker
+    buildCommand: cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/worker build
+    startCommand: pnpm --filter @zfloat/worker start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: zfloat-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: zfloat-redis
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: MALWARE_SCANNER_DRIVER
+        value: clamav
+      - key: DEMO_MODE
+        value: "false"
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: PROVIDER_DEFAULT
+        value: local-sandbox
+      - key: MOCK_PROVIDER_SECRET
+        generateValue: true
+      - key: REDIS_PREFIX
+        value: zfloat
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: WORKER_CONCURRENCY
+        value: "5"
+      - key: WORKER_CRON_ENABLED
+        value: "true"
+      - key: OUTBOX_RELAY_INTERVAL_MS
+        value: "5000"
+      - key: OUTBOX_RELAY_LEASE_KEY
+        value: "723993001"
+      - key: MPESA_ENVIRONMENT
+        value: sandbox
+      - key: MPESA_SHORTCODE
+        value: "174379"
+      - key: MPESA_TIMEOUT_MS
+        value: "15000"
+      - key: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+        value: "5"
+      - key: CIRCUIT_BREAKER_SUCCESS_THRESHOLD
+        value: "2"
+      - key: CIRCUIT_BREAKER_TIMEOUT_MS
+        value: "30000"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_MAX
+        value: "120"
+      - key: OTEL_ENABLED
+        value: "false"
+      - key: ADMIN_EMAIL
+        value: admin@zfloat.app
+      - key: SECRETS_DRIVER
+        value: none
+
+  # Outbox Relay Service
+  - type: worker
+    name: zfloat-outbox-relay
+    plan: free
+    region: oregon
+    repo: https://github.com/supportfleektech-tech/z-float-2-main
+    branch: master
+    rootDir: services/outbox-relay
+    buildCommand: cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/outbox-relay build
+    startCommand: pnpm --filter @zfloat/outbox-relay start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: zfloat-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: zfloat-redis
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: MALWARE_SCANNER_DRIVER
+        value: clamav
+      - key: DEMO_MODE
+        value: "false"
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: PROVIDER_DEFAULT
+        value: local-sandbox
+      - key: MOCK_PROVIDER_SECRET
+        generateValue: true
+      - key: REDIS_PREFIX
+        value: zfloat
+      - key: OUTBOX_RELAY_INTERVAL_MS
+        value: "5000"
+      - key: OUTBOX_RELAY_LEASE_KEY
+        value: "723993001"
+      - key: MPESA_ENVIRONMENT
+        value: sandbox
+      - key: MPESA_SHORTCODE
+        value: "174379"
+      - key: MPESA_TIMEOUT_MS
+        value: "15000"
+      - key: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+        value: "5"
+      - key: CIRCUIT_BREAKER_SUCCESS_THRESHOLD
+        value: "2"
+      - key: CIRCUIT_BREAKER_TIMEOUT_MS
+        value: "30000"
+      - key: SECRETS_DRIVER
+        value: none
