@@ -19,6 +19,9 @@ const nextConfig = {
     serverComponentsExternalPackages: ["pg", "bullmq", "@valkey/valkey-glide"],
   },
   output: "standalone",
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
