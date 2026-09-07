@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: postgresql
+  - type: pserv
     name: zfloat-db
     plan: free
     region: oregon
