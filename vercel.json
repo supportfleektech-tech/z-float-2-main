@@ -1,0 +1,13 @@
+{
+  "buildCommand": "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @zfloat/web build",
+  "outputDirectory": "apps/web/.next",
+  "devCommand": "pnpm --filter @zfloat/web dev",
+  "installCommand": "corepack enable pnpm && pnpm install --frozen-lockfile",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}
