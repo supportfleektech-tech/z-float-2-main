@@ -1,11 +1,11 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (managed)
   - type: pserv
     name: zfloat-db
     plan: starter
     region: oregon
 
-  # Redis
+  # Redis (managed)
   - type: redis
     name: zfloat-redis
     plan: free
