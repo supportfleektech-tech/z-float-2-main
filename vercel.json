@@ -1,8 +1,8 @@
 {
-  "buildCommand": "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @zfloat/web build",
-  "outputDirectory": "apps/web/.next",
-  "devCommand": "pnpm --filter @zfloat/web dev",
-  "installCommand": "corepack enable pnpm && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @zfloat/web build",
+  "outputDirectory": ".next",
+  "devCommand": "pnpm dev",
+  "installCommand": "cd ../.. && corepack enable pnpm && pnpm install --frozen-lockfile",
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
