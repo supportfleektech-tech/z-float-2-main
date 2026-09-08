@@ -9,5 +9,6 @@
     "app/api/**/*.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "rootDirectory": "apps/web"
 }
