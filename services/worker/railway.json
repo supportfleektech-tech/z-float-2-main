@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/worker build"
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @zfloat/worker start",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "on_failure",
+    "restartPolicyMaxRetries": 10
+  }
+}

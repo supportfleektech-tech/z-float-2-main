@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @zfloat/outbox-relay build"
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @zfloat/outbox-relay start",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "on_failure",
+    "restartPolicyMaxRetries": 10
+  }
+}
