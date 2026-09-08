@@ -2,7 +2,7 @@ services:
   # PostgreSQL Database
   - type: pserv
     name: zfloat-db
-    plan: free
+    plan: starter
     region: oregon
 
   # Redis
@@ -11,10 +11,12 @@ services:
     plan: free
     region: oregon
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
   # Worker Service
   - type: worker
     name: zfloat-worker
+    runtime: node
     plan: free
     region: oregon
     repo: https://github.com/supportfleektech-tech/z-float-2-main
@@ -87,6 +89,7 @@ services:
   # Outbox Relay Service
   - type: worker
     name: zfloat-outbox-relay
+    runtime: node
     plan: free
     region: oregon
     repo: https://github.com/supportfleektech-tech/z-float-2-main
