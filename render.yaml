@@ -4,9 +4,6 @@ services:
     name: zfloat-db
     plan: free
     region: oregon
-    postgresMajorVersion: 16
-    databaseName: zfloat
-    user: zfloat
 
   # Redis
   - type: redis
