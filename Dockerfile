@@ -14,9 +14,34 @@ COPY apps ./apps
 COPY services ./services
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# ---------- build all packages ----------
+# ---------- build packages in dependency order ----------
 FROM deps AS build
-RUN pnpm -r build
+# Build independent packages first (no internal deps)
+RUN pnpm --filter @zfloat/config build
+RUN pnpm --filter @zfloat/money build
+RUN pnpm --filter @zfloat/observability build
+RUN pnpm --filter @zfloat/secrets build
+RUN pnpm --filter @zfloat/validation build
+# Build providers, queue, storage (depend on config/money/observability)
+RUN pnpm --filter @zfloat/providers build
+RUN pnpm --filter @zfloat/queue build
+RUN pnpm --filter @zfloat/storage build
+# Build database, ledger, auth, kyc (depend on above)
+RUN pnpm --filter @zfloat/database build
+RUN pnpm --filter @zfloat/ledger build
+RUN pnpm --filter @zfloat/auth build
+RUN pnpm --filter @zfloat/kyc build
+# Build notifications, audit, approvals (depend on database/ledger)
+RUN pnpm --filter @zfloat/notifications build
+RUN pnpm --filter @zfloat/audit build
+RUN pnpm --filter @zfloat/approvals build
+# Build payments-core last (depends on approvals, database, etc)
+RUN pnpm --filter @zfloat/payments-core build
+# Build services
+RUN pnpm --filter @zfloat/worker build
+RUN pnpm --filter @zfloat/outbox-relay build
+# Build web last
+RUN pnpm --filter @zfloat/web build
 
 # ---------- web runtime ----------
 FROM node:20-alpine AS web
