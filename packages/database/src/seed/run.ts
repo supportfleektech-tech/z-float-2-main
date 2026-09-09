@@ -15,10 +15,22 @@ import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { getConfig } from "@zfloat/config";
 import { createDb, schema, toJsonSafe } from "../index.js";
-import { ensureSystemChart, postFundingJournal } from "@zfloat/ledger";
 import { MockProvider } from "@zfloat/providers";
 
 async function loadAuth() {
+  const mod = await import("@zfloat/auth");
+  return { hashPassword: mod.hashPassword };
+}
+
+async function loadLedger() {
+  const mod = await import("@zfloat/ledger");
+  return {
+    ensureSystemChart: mod.ensureSystemChart,
+    postFundingJournal: mod.postFundingJournal,
+  };
+}
+
+async function loadPaymentsCore() {
   const mod = await import("@zfloat/auth");
   return { hashPassword: mod.hashPassword };
 }
@@ -49,6 +61,8 @@ async function main() {
   const config = getConfig();
   const auth = await loadAuth();
   const { hashPassword } = auth;
+  const ledger = await loadLedger();
+  const { ensureSystemChart, postFundingJournal } = ledger;
   const payments = await loadPaymentsCore();
   const {
     createPayment,

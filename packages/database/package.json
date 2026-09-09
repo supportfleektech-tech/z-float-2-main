@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@zfloat/config": "workspace:*",
-    "@zfloat/ledger": "workspace:^",
     "@zfloat/money": "workspace:*",
     "@zfloat/providers": "workspace:^",
     "drizzle-orm": "^0.36.4",
