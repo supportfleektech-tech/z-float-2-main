@@ -217,15 +217,9 @@ importers:
 
   packages/database:
     dependencies:
-      '@zfloat/auth':
-        specifier: workspace:^
-        version: link:../auth
       '@zfloat/config':
         specifier: workspace:*
         version: link:../config
-      '@zfloat/ledger':
-        specifier: workspace:^
-        version: link:../ledger
       '@zfloat/money':
         specifier: workspace:*
         version: link:../money
