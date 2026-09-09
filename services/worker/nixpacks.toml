@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs", "corepack"]
+
+[phases.install]
+cmds = [
+  "corepack enable pnpm",
+  "pnpm install --frozen-lockfile",
+]
+
+[phases.build]
+cmds = [
+  "pnpm --filter @zfloat/worker build",
+]
+
+[phases.deploy]
+cmd = "pnpm --filter @zfloat/worker start"
