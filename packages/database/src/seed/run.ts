@@ -15,9 +15,13 @@ import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { getConfig } from "@zfloat/config";
 import { createDb, schema, toJsonSafe } from "../index.js";
-import { hashPassword } from "@zfloat/auth";
 import { ensureSystemChart, postFundingJournal } from "@zfloat/ledger";
 import { MockProvider } from "@zfloat/providers";
+
+async function loadAuth() {
+  const mod = await import("@zfloat/auth");
+  return { hashPassword: mod.hashPassword };
+}
 
 async function loadPaymentsCore() {
   const mod = await import("@zfloat/payments-core");
@@ -43,6 +47,8 @@ const KES = (v: string) => BigInt(Math.round(Number(v) * 100));
 
 async function main() {
   const config = getConfig();
+  const auth = await loadAuth();
+  const { hashPassword } = auth;
   const payments = await loadPaymentsCore();
   const {
     createPayment,

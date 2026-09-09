@@ -22,7 +22,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@zfloat/auth": "workspace:^",
     "@zfloat/config": "workspace:*",
     "@zfloat/ledger": "workspace:^",
     "@zfloat/money": "workspace:*",
