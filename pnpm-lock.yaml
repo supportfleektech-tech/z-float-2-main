@@ -229,9 +229,6 @@ importers:
       '@zfloat/money':
         specifier: workspace:*
         version: link:../money
-      '@zfloat/payments-core':
-        specifier: workspace:^
-        version: link:../payments-core
       '@zfloat/providers':
         specifier: workspace:^
         version: link:../providers
