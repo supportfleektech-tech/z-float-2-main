@@ -273,9 +273,6 @@ importers:
       '@zfloat/ledger':
         specifier: workspace:*
         version: link:../ledger
-      '@zfloat/payments-core':
-        specifier: workspace:*
-        version: link:../payments-core
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
