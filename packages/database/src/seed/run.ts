@@ -17,17 +17,21 @@ import { getConfig } from "@zfloat/config";
 import { createDb, schema, toJsonSafe } from "../index.js";
 import { hashPassword } from "@zfloat/auth";
 import { ensureSystemChart, postFundingJournal } from "@zfloat/ledger";
-import {
-  createPayment,
-  submitPayment,
-  executePayment,
-  createBatch,
-  submitBatch,
-  materializeBatchRow,
-  markBatchRowOutcome,
-  refreshBatchStatus,
-} from "@zfloat/payments-core";
 import { MockProvider } from "@zfloat/providers";
+
+async function loadPaymentsCore() {
+  const mod = await import("@zfloat/payments-core");
+  return {
+    createPayment: mod.createPayment,
+    submitPayment: mod.submitPayment,
+    executePayment: mod.executePayment,
+    createBatch: mod.createBatch,
+    submitBatch: mod.submitBatch,
+    materializeBatchRow: mod.materializeBatchRow,
+    markBatchRowOutcome: mod.markBatchRowOutcome,
+    refreshBatchStatus: mod.refreshBatchStatus,
+  };
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadDotenv({ path: path.resolve(__dirname, "../../../../.env"), quiet: true });
@@ -39,6 +43,17 @@ const KES = (v: string) => BigInt(Math.round(Number(v) * 100));
 
 async function main() {
   const config = getConfig();
+  const payments = await loadPaymentsCore();
+  const {
+    createPayment,
+    submitPayment,
+    executePayment,
+    createBatch,
+    submitBatch,
+    materializeBatchRow,
+    markBatchRowOutcome,
+    refreshBatchStatus,
+  } = payments;
   if (config.NODE_ENV === "production" || config.NODE_ENV === "staging") {
     // eslint-disable-next-line no-console
     console.error(
