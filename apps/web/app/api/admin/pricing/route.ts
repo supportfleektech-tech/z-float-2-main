@@ -23,8 +23,10 @@ export async function GET() {
   const rules = await db.select().from(schema.feeRules).orderBy(desc(schema.feeRules.updatedAt)).limit(100);
   const versions = await db.select().from(schema.feeVersions).orderBy(desc(schema.feeVersions.createdAt)).limit(200);
   return apiOk({
-    data: rules.map((r) => ({ ...r, flatFeeMinor: r.flatFeeMinor.toString(), percentBps: r.percentBps.toString(), minFeeMinor: r.minFeeMinor.toString(), maxFeeMinor: r.maxFeeMinor.toString() })),
-    versions,
+    data: {
+      rules: rules.map((r) => ({ ...r, flatFeeMinor: r.flatFeeMinor.toString(), percentBps: r.percentBps.toString(), minFeeMinor: r.minFeeMinor.toString(), maxFeeMinor: r.maxFeeMinor.toString() })),
+      versions,
+    },
   });
 }
 
