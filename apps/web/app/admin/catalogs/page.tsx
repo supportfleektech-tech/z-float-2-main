@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Card, TableShell, Badge, Button, Input, Label, Select, Skeleton, Modal, Spinner } from "@/components/ui";
+import { formatKES } from "@/lib/money";
+import { minorOrZero } from "@zfloat/money";
 
 interface Biller {
   id: string;
@@ -107,7 +109,7 @@ export default function AdminCatalogsPage() {
         productCode: next.row.productCode,
         name: next.row.name,
         type: next.row.type,
-        amount: (BigInt(next.row.denominationMinor) / 100n).toString(),
+        amount: (minorOrZero(next.row.denominationMinor) / 100n).toString(),
       });
     }
     setEditor(next);
@@ -239,7 +241,7 @@ export default function AdminCatalogsPage() {
                   <td className="px-4 py-2.5 font-mono text-xs">{a.network}</td>
                   <td className="px-4 py-2.5 text-sm font-medium">{a.name}</td>
                   <td className="px-4 py-2.5"><Badge tone={a.type === "DATA" ? "info" : "neutral"}>{a.type}</Badge></td>
-                  <td className="px-4 py-2.5 font-medium">KES {(BigInt(a.denominationMinor) / 100n).toString()}</td>
+                  <td className="px-4 py-2.5 font-medium">{formatKES(a.denominationMinor)}</td>
                   <td className="px-4 py-2.5"><Badge tone={a.enabled ? "success" : "neutral"}>{a.enabled ? "ACTIVE" : "DISABLED"}</Badge></td>
                   <td className="px-4 py-2.5 text-right">
                     <button className="mr-3 text-xs text-primary hover:underline" onClick={() => openEditor({ kind: "airtime", row: a })}>Edit</button>

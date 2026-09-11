@@ -5,6 +5,7 @@
 :root {
   --zf-primary: #0F5BFF;
   --zf-primary-strong: #083DAF;
+  --zf-primary-soft: #EAF1FF;
   --zf-ink: #0B1220;
   --zf-surface: #F7F9FC;
   --zf-card: #FFFFFF;
@@ -14,10 +15,39 @@
   --zf-danger: #C53030;
 }
 
+.dark {
+  --zf-primary: #4D8CFF;
+  --zf-primary-strong: #7AA8FF;
+  --zf-primary-soft: #1E3A5F;
+  --zf-ink: #F7F9FC;
+  --zf-surface: #0B1220;
+  --zf-card: #131A2E;
+  --zf-border: #2A3348;
+  --zf-success: #34D399;
+  --zf-warning: #FBBF24;
+  --zf-danger: #F87171;
+}
+
 body {
   @apply bg-surface text-ink antialiased;
 }
 
 .focus-ring {
   @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+}
+
+/* Custom scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: var(--zf-surface);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--zf-border);
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--zf-primary);
 }

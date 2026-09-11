@@ -31,11 +31,6 @@ async function loadLedger() {
 }
 
 async function loadPaymentsCore() {
-  const mod = await import("@zfloat/auth");
-  return { hashPassword: mod.hashPassword };
-}
-
-async function loadPaymentsCore() {
   const mod = await import("@zfloat/payments-core");
   return {
     createPayment: mod.createPayment,
@@ -296,6 +291,7 @@ async function main() {
       .values({
         email: adminEmail,
         fullName: "Platform Admin",
+        phone: "+254700000001",
         passwordHash: await hashPassword(password),
         status: "ACTIVE",
       })
@@ -336,6 +332,7 @@ async function main() {
       .values({
         email: checkerEmail,
         fullName: "Platform Checker",
+        phone: "+254700000002",
         passwordHash: await hashPassword(DEMO_PASSWORD),
         status: "ACTIVE",
       })
@@ -441,30 +438,35 @@ async function main() {
       name: "Demo Owner",
       role: "OWNER",
       branch: branchIds[0],
+      phone: "+254712345678",
     },
     {
       email: "finance@acme.co.ke",
       name: "Grace Mwangi",
       role: "FINANCE_MANAGER",
       branch: branchIds[0],
+      phone: "+254722345678",
     },
     {
       email: "maker@acme.co.ke",
       name: "Brian Otieno",
       role: "MAKER",
       branch: branchIds[1],
+      phone: "+254732345678",
     },
     {
       email: "approver@acme.co.ke",
       name: "Faith Njeri",
       role: "APPROVER",
       branch: branchIds[0],
+      phone: "+254742345678",
     },
     {
       email: "accountant@acme.co.ke",
       name: "Peter Kilonzo",
       role: "ACCOUNTANT",
       branch: branchIds[2],
+      phone: "+254752345678",
     },
   ];
   const userIds: Record<string, string> = {};
@@ -475,6 +477,7 @@ async function main() {
         tenantId,
         email: u.email,
         fullName: u.name,
+        phone: u.phone,
         passwordHash: await hashPassword(
           u.email === DEMO_EMAIL
             ? DEMO_PASSWORD

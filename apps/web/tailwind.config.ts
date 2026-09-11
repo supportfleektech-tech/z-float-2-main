@@ -2,16 +2,22 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        primary: { DEFAULT: "#0F5BFF", strong: "#083DAF", soft: "#EAF1FF" },
-        ink: "#0B1220",
-        surface: "#F7F9FC",
-        borderline: "#E7ECF3",
-        success: "#149447",
-        warning: "#B7791F",
-        danger: "#C53030",
+        primary: {
+          DEFAULT: "var(--zf-primary)",
+          strong: "var(--zf-primary-strong)",
+          soft: "var(--zf-primary-soft)",
+        },
+        ink: "var(--zf-ink)",
+        surface: "var(--zf-surface)",
+        card: "var(--zf-card)",
+        borderline: "var(--zf-border)",
+        success: "var(--zf-success)",
+        warning: "var(--zf-warning)",
+        danger: "var(--zf-danger)",
         muted: "#5B6B83",
       },
       borderRadius: { card: "16px", control: "10px" },

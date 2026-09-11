@@ -188,6 +188,30 @@ export function TableShell({ headers, children, empty }: { headers: string[]; ch
   );
 }
 
+export function Switch({ label, disabled, className, id, onCheckedChange, ...props }: { label?: string; disabled?: boolean; className?: string; id?: string; onCheckedChange?: (checked: boolean) => void } & React.InputHTMLAttributes<HTMLInputElement>) {
+    const switchId = id || `switch-${Math.random().toString(36).slice(2, 9)}`;
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (onCheckedChange) onCheckedChange(e.target.checked);
+      if (props.onChange) props.onChange(e);
+    };
+    return (
+      <label className={`flex items-center gap-3 cursor-pointer ${className ?? ""} ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+        <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-borderline bg-surface transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 peer">
+          <input
+            type="checkbox"
+            id={switchId}
+            className="sr-only peer"
+            disabled={disabled}
+            onChange={handleChange}
+            {...props}
+          />
+          <span className="pointer-events-none absolute left-1 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-lg transition-transform peer-checked:translate-x-full peer-checked:border-primary peer-checked:bg-primary" aria-hidden="true" />
+        </span>
+        {label && <span className="text-sm font-medium text-ink">{label}</span>}
+      </label>
+    );
+  }
+
 export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
     <div className="mb-5 flex gap-1 border-b border-borderline" role="tablist">

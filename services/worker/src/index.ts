@@ -63,7 +63,16 @@ async function main() {
   const { db } = getDb();
   const handles: WorkerHandle[] = [];
 
+  // Global error handlers
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('[worker] Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('[worker] Uncaught Exception:', err);
+  });
+
   // ---- payments.execution: dispatch a single payment to its provider ----
+  console.log('[worker] Starting payments.execution worker...');
   handles.push(
     startWorker("payments.execution", async (payload) => {
       await executePayment(db, {
@@ -74,6 +83,7 @@ async function main() {
       });
     }),
   );
+  console.log('[worker] payments.execution worker started');
 
   // ---- batches.execution: materialize + execute batch rows in chunks ----
   // Chunk driver: getBatchRows returns at most CHUNK (200) VALID rows, so a
@@ -82,6 +92,7 @@ async function main() {
   // Phase-9-closeout batch soak). Materialization is idempotent per row
   // (deterministic payment idempotency key `batch:<id>:row:<n>`), so a stall
   // recovery re-run simply skips rows already PENDING/SUCCESS.
+  console.log('[worker] Starting batches.execution worker...');
   handles.push(
     startWorker("batches.execution", async (payload) => {
       const batchId = payload.batchId as string;
@@ -112,29 +123,37 @@ async function main() {
       }
     }),
   );
+  console.log('[worker] batches.execution worker started');
 
   // ---- webhooks.process: verified provider callbacks ----
+  console.log('[worker] Starting webhooks.process worker...');
   handles.push(
     startWorker("webhooks.process", async (payload) => {
       await processWebhookEvent(db, payload.eventId as string);
     }),
   );
+  console.log('[worker] webhooks.process worker started');
 
   // ---- notifications.send ----
+  console.log('[worker] Starting notifications.send worker...');
   handles.push(
     startWorker("notifications.send", async (payload) => {
       await dispatchNotification(db, payload.notificationId as string);
     }),
   );
+  console.log('[worker] notifications.send worker started');
 
   // ---- payments.monitor: unknown-state recovery ----
+  console.log('[worker] Starting payments.monitor worker...');
   handles.push(
     startWorker("payments.monitor", async (payload) => {
       await monitorStuckPayments(db, registry.default(), { olderThanMs: payload.olderThanMs as number | undefined });
     }),
   );
+  console.log('[worker] payments.monitor worker started');
 
   // ---- schedules.dispatch: create payments for due schedules ----
+  console.log('[worker] Starting schedules.dispatch worker...');
   handles.push(
     startWorker("schedules.dispatch", async (payload) => {
       const created = await createScheduledPayments(db, { limit: 50 });
@@ -143,34 +162,43 @@ async function main() {
       }
     }),
   );
+  console.log('[worker] schedules.dispatch worker started');
 
   // ---- reconciliation.run: match provider items against payments ----
+  console.log('[worker] Starting reconciliation.run worker...');
   handles.push(
     startWorker("reconciliation.run", async (payload) => {
       await runReconciliation(db, { runId: payload.runId as string | undefined });
     }),
   );
+  console.log('[worker] reconciliation.run worker started');
 
   // ---- files.scan: malware scanning pipeline (mock/clamav) ----
+  console.log('[worker] Starting files.scan worker...');
   handles.push(
     startWorker("files.scan", async (payload) => {
       await scanFile(db, payload.fileId as string);
     }),
   );
+  console.log('[worker] files.scan worker started');
 
   // ---- webhooks.deliver: outbound tenant webhook delivery with retries ----
+  console.log('[worker] Starting webhooks.deliver worker...');
   handles.push(
     startWorker("webhooks.deliver", async (payload) => {
       await deliverWebhook(db, payload.deliveryId as string, Number(payload.attempt ?? 1));
     }),
   );
+  console.log('[worker] webhooks.deliver worker started');
 
   // ---- reports.generate: async exports (structure; workers add exporters) ----
+  console.log('[worker] Starting reports.generate worker...');
   handles.push(
     startWorker("reports.generate", async (payload) => {
       await generateReport(db, payload.reportId as string, payload);
     }),
   );
+  console.log('[worker] reports.generate worker started');
 
   // Startup stall recovery (see hourly sweep below): re-drive PROCESSING
   // batches that still have VALID rows (interrupted runs from a previous
@@ -344,8 +372,13 @@ async function main() {
   // eslint-disable-next-line no-console
   console.log("[worker] default provider:", registry.default().code);
 
+  // Keep process alive - BullMQ workers should do this but just in case
+  const keepAlive = setInterval(() => {}, 1000);
+  // Don't unref - this keeps the process alive
+
   const shutdown = async () => {
     outbox.stop();
+    clearInterval(keepAlive);
     // eslint-disable-next-line no-console
     console.log("[worker] shutting down...");
     await Promise.all(handles.map((h) => h.close()));
