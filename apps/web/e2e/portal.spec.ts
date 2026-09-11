@@ -69,7 +69,7 @@ test.describe("platform admin", () => {
 
     await page.goto("/admin/pricing");
     await expect(page.getByRole("heading", { name: "Pricing & fees" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("single_payment", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("cell", { name: "single_payment", exact: true }).first()).toBeVisible({ timeout: 30_000 });
   });
 
   test("unauthorized users are blocked from admin", async ({ page }) => {
