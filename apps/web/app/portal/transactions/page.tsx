@@ -10,6 +10,7 @@ import {
   Skeleton,
   EmptyState,
 } from "@/components/ui";
+import { formatKESExact as fmt } from "@/lib/money";
 interface Tx {
   id: string;
   paymentNumber: string;
@@ -127,8 +128,4 @@ export default function TransactionsPage() {
       )}{" "}
     </div>
   );
-}
-function fmt(minor: string): string {
-  const n = BigInt(minor);
-  return `${(n / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(n % 100n).toString().padStart(2, "0")}`;
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Button, Input, Label, TableShell, Badge, Skeleton, Modal, Spinner } from "@/components/ui";
+import { formatKES } from "@/lib/money";
 
 interface LinkRow {
   id: string;
@@ -119,7 +120,7 @@ export default function PaymentLinksPage() {
                 <p className="font-medium">{r.name}</p>
                 <p className="max-w-52 truncate text-xs text-muted">{r.description ?? "—"}</p>
               </td>
-              <td className="px-4 py-3 font-medium">KES {(BigInt(r.amountMinor) / 100n).toString()}</td>
+              <td className="px-4 py-3 font-medium">{formatKES(r.amountMinor)}</td>
               <td className="px-4 py-3 text-xs text-muted">{r.useCount}{r.maxUses ? ` / ${r.maxUses}` : ""}</td>
               <td className="px-4 py-3">
                 <Badge tone={r.status === "ACTIVE" ? "success" : r.status === "PAUSED" ? "warning" : "neutral"}>{r.status}</Badge>

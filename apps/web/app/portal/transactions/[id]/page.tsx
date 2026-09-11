@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, PageHeader, StatusBadge, Badge, Button, Skeleton, Spinner } from "@/components/ui";
+import { formatKESExact as fmt } from "@/lib/money";
 
 interface Detail {
   id: string;
@@ -194,7 +195,3 @@ export default function TransactionDetailPage() {
   );
 }
 
-function fmt(minor: string): string {
-  const n = BigInt(minor);
-  return `${(n / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(n % 100n).toString().padStart(2, "0")}`;
-}

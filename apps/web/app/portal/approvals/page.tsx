@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Button, TableShell, StatusBadge, Badge, Skeleton, EmptyState, Spinner } from "@/components/ui";
+import { formatKESExact } from "@/lib/money";
 
 interface ApprovalRow {
   id: string;
@@ -29,8 +30,7 @@ const KIND_LABEL: Record<ApprovalRow["kind"], { label: string; tone: "success" |
 
 function fmt(minor: string | null): string {
   if (!minor) return "—";
-  const n = BigInt(minor);
-  return `${(n / 100n).toString().replace(/\B(?=(?:\d{3})+(?!\d))/g, ",")}.${(n % 100n).toString().padStart(2, "0")}`;
+  return formatKESExact(minor);
 }
 
 export default function ApprovalsPage() {

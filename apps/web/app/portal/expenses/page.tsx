@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatKES } from "@/lib/money";
 import {
   PageHeader,
   Card,
@@ -81,7 +82,7 @@ export default function ExpensesPage() {
               {" "}
               <td className="px-4 py-3 font-medium">{c.description}</td>{" "}
               <td className="px-4 py-3 font-medium">
-                KES {(BigInt(c.amountMinor) / 100n).toString()}
+                {formatKES(c.amountMinor)}
               </td>{" "}
               <td className="px-4 py-3 text-xs text-muted">
                 {new Date(c.createdAt).toLocaleString()}

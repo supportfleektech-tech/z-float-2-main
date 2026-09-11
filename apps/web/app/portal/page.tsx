@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card, StatCard, Button, StatusBadge, Skeleton, PageHeader } from "@/components/ui";
+import { formatKESExact as formatMinor } from "@/lib/money";
 
 interface Payment {
   id: string;
@@ -124,9 +125,3 @@ export default function PortalDashboard() {
   );
 }
 
-function formatMinor(minor: string): string {
-  const n = BigInt(minor);
-  const whole = (n / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const frac = (n % 100n).toString().padStart(2, "0");
-  return `${whole}.${frac}`;
-}

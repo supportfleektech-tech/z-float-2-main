@@ -12,6 +12,7 @@ import {
   Card,
   Textarea,
 } from "@/components/ui";
+import { formatKES } from "@/lib/money";
 import { ReconExceptionPanel } from "@/components/recon-exception-panel";
 
 interface Exception {
@@ -187,7 +188,7 @@ export default function ReconciliationPage() {
                 <td className="px-4 py-3">
                   <Badge tone="danger">{x.kind.replace(/_/g, " ")}</Badge>
                 </td>
-                <td className="px-4 py-3 font-medium">KES {(BigInt(x.amountMinor) / 100n).toLocaleString()}</td>
+                <td className="px-4 py-3 font-medium">{formatKES(x.amountMinor)}</td>
                 <td className="px-4 py-3">
                   <Badge tone={x.severity === "HIGH" ? "danger" : "warning"}>{x.severity}</Badge>
                 </td>

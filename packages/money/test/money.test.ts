@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Money, parseMinor, minorToDecimalString, minorToDisplay } from "../src/index.js";
+import { Money, parseMinor, minorToDecimalString, minorToDisplay, minorOrZero } from "../src/index.js";
 
 describe("Money", () => {
   it("stores minor units as bigint and never uses floats", () => {
@@ -65,5 +65,19 @@ describe("Money", () => {
     expect(minorToDisplay(123456789n)).toBe("KES 1,234,567.89");
     expect(minorToDisplay(-50n)).toBe("KES -0.50");
     expect(minorToDecimalString(5n)).toBe("0.05");
+  });
+
+  it("minorOrZero coerces garbage to 0n instead of throwing", () => {
+    expect(minorOrZero("12345")).toBe(12345n);
+    expect(minorOrZero(12345)).toBe(12345n);
+    expect(minorOrZero(12345n)).toBe(12345n);
+    expect(minorOrZero(undefined)).toBe(0n);
+    expect(minorOrZero(null)).toBe(0n);
+    expect(minorOrZero("")).toBe(0n);
+    expect(minorOrZero("  ")).toBe(0n);
+    expect(minorOrZero("12.99")).toBe(12n);
+    expect(minorOrZero("not-a-number")).toBe(0n);
+    expect(minorOrZero(NaN)).toBe(0n);
+    expect(minorOrZero(Infinity)).toBe(0n);
   });
 });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card, Input, Label, Select, Textarea, PageHeader, Badge, Spinner } from "@/components/ui";
-import { parseMinor, minorToDisplay, MoneyParseError } from "@zfloat/money";
+import { parseMinor, minorToDisplay, minorOrZero, MoneyParseError } from "@zfloat/money";
 
 const CHANNELS = [
   { value: "mpesa", label: "M-Pesa phone (send)" },
@@ -58,7 +58,7 @@ export default function NewPaymentPage() {
     }
   }, [amount]);
 
-  const feeMinor = fee ? BigInt(fee.feeMinor) : 0n;
+  const feeMinor = fee ? minorOrZero(fee.feeMinor) : 0n;
   const totalMinor = amountMinor !== null ? amountMinor + feeMinor : null;
 
   async function onSubmit(e: React.FormEvent) {
@@ -131,7 +131,7 @@ export default function NewPaymentPage() {
                   <option value="">Select wallet…</option>
                   {wallets.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} — {minorToDisplay(BigInt(w.availableMinor))}
+                      {w.name} — {minorToDisplay(minorOrZero(w.availableMinor))}
                     </option>
                   ))}
                 </Select>

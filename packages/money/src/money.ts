@@ -88,9 +88,34 @@ export function minorToDecimalString(minor: bigint, _currency: Currency = "KES")
   return `${negative ? "-" : ""}${whole.toString()}.${fracStr}`;
 }
 
+/** Tolerant minor-unit coercion for UI/API boundaries: anything unparseable
+ * (undefined, null, "", "12.34", NaN) becomes 0n instead of throwing.
+ * Use wherever a missing field must degrade to zero, never crash. */
+export function minorOrZero(value: string | number | bigint | undefined | null): bigint {
+  try {
+    if (typeof value === "bigint") return value;
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return 0n;
+      return BigInt(Math.trunc(value));
+    }
+    if (typeof value === "string") {
+      const t = value.trim();
+      if (!t) return 0n;
+      try {
+        return BigInt(t);
+      } catch {
+        const n = Number(t);
+        return Number.isFinite(n) ? BigInt(Math.trunc(n)) : 0n;
+      }
+    }
+    return 0n;
+  } catch {
+    return 0n;
+  }
+}
+
 /** Format minor units with thousands separators for display. */
-export function minorToDisplay(minor: bigint, currency: Currency = "KES"): string {
-  const negative = minor < 0n;
+export function minorToDisplay(minor: bigint, currency: Currency = "KES"): string {  const negative = minor < 0n;
   const abs = negative ? -minor : minor;
   const whole = abs / MINOR_UNITS_PER_UNIT;
   const frac = abs % MINOR_UNITS_PER_UNIT;

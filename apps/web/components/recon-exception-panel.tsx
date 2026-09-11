@@ -5,6 +5,7 @@
  * Fetches /api/reconciliation/exceptions/[id] which resolves actor names. */
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Card, Label, Skeleton, Spinner, Textarea } from "@/components/ui";
+import { formatKES } from "@/lib/money";
 
 interface ActivityActor {
   id: string;
@@ -53,11 +54,7 @@ const ACTION_LABEL: Record<string, string> = {
 
 function kes(amountMinor: string | null): string {
   if (amountMinor === null) return "—";
-  try {
-    return `KES ${(BigInt(amountMinor) / 100n).toLocaleString()}`;
-  } catch {
-    return `KES ${amountMinor}`;
-  }
+  return formatKES(amountMinor);
 }
 
 export function ReconExceptionPanel({
