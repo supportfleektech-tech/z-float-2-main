@@ -35,25 +35,32 @@ export default function AdminLayout({
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     fetch("/api/admin/session", { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!d) {
+        // Ignore the result if this effect instance was cleaned up
+        // (React StrictMode double-mount aborts the first fetch — that
+        // abort must not permanently lock the page into "denied").
+        if (cancelled) return;
+        if (!d?.user) {
           setDenied(true);
-          setLoading(false);
-          return;
+        } else {
+          setUser(d.user);
+          setDenied(false);
         }
-        setUser(d.user);
         setLoading(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setDenied(true);
         setLoading(false);
       })
       .finally(() => clearTimeout(timer));
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       ctrl.abort();
     };
