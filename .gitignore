@@ -16,3 +16,6 @@ test-results/
 *.log
 .pnpm-store/
 scripts/tools/minio
+.vercel
+.env*
+!.env.example
