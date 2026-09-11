@@ -31,26 +31,76 @@ export async function POST(request: Request) {
   const accountRef = String(b.accountRef ?? "");
   const amount = String(b.amount ?? "0");
 
-  const [biller] = await db.select().from(schema.billers).where(eq(schema.billers.id, billerId)).limit(1);
-  if (!biller) return apiError(404, "NOT_FOUND", "Biller not found");
+  let channel: string;
+  let paybillNumber: string | undefined;
+  let tillNumber: string | undefined;
+  let paybillAccount: string | undefined;
+  let name: string;
+  let remark: string;
+
+  let category = "utilities";
+  if (billerId === "custom") {
+    // Custom biller
+    const customName = String(b.customName ?? "");
+    const customChannel = String(b.customChannel ?? "paybill");
+    const customAccountNumber = String(b.customAccountNumber ?? "");
+    const customCategory = String(b.customCategory ?? "Utilities");
+
+    if (!customName) return apiError(400, "INVALID_NAME", "Enter a biller name");
+    if (!customAccountNumber) return apiError(400, "INVALID_ACCOUNT", "Enter the paybill/till number");
+    if (Number(amount) <= 0) return apiError(400, "INVALID_AMOUNT", "Enter a valid amount");
+
+    channel = customChannel;
+    name = customName;
+    category = customCategory || "utilities";
+    remark = `Bill: ${customName} (${accountRef || customAccountNumber})`;
+
+    if (customChannel === "till") {
+      tillNumber = customAccountNumber;
+    } else {
+      paybillNumber = customAccountNumber;
+      paybillAccount = accountRef || undefined;
+    }
+  } else {
+    // Predefined biller
+    const [biller] = await db.select().from(schema.billers).where(eq(schema.billers.id, billerId)).limit(1);
+    if (!biller) return apiError(404, "NOT_FOUND", "Biller not found");
+
+    channel = biller.channel === "till" ? "till" : "paybill";
+    name = biller.name;
+    category = biller.category || "utilities";
+    remark = `Bill: ${biller.name} (${accountRef})`;
+
+    if (biller.channel === "till") {
+      tillNumber = biller.accountNumber;
+    } else {
+      paybillNumber = biller.accountNumber;
+      paybillAccount = accountRef;
+    }
+  }
 
   const [wallet] = await db.select().from(schema.wallets).where(eq(schema.wallets.tenantId, user!.tenantId!)).limit(1);
   if (!wallet) return apiError(400, "NO_WALLET", "No wallet configured for this workspace");
 
   try {
+    const recipient: { name: string; tillNumber?: string; paybillNumber?: string; paybillAccount?: string } = { name };
+    if (channel === "till") {
+      recipient.tillNumber = tillNumber!;
+    } else {
+      recipient.paybillNumber = paybillNumber!;
+      if (paybillAccount) recipient.paybillAccount = paybillAccount;
+    }
+
     const { payment } = await createPayment(db, {
       tenantId: user!.tenantId!,
       actorId: user!.userId,
       amount,
-      channel: biller.channel === "till" ? "till" : "paybill",
+      channel: channel as "mpesa" | "till" | "paybill" | "bank",
       product: "bill_payment",
       sourceWalletId: wallet.id,
-      category: "utilities",
-      remark: `Bill: ${biller.name} (${accountRef})`,
-      recipient: {
-        name: biller.name,
-        ...(biller.channel === "till" ? { tillNumber: biller.accountNumber } : { paybillNumber: biller.accountNumber, paybillAccount: accountRef }),
-      },
+      category,
+      remark,
+      recipient,
       idempotencyKey: String(b.idempotencyKey ?? `bill-${crypto.randomUUID()}`),
     });
     await writeAuditEvent(db, { tenantId: user!.tenantId!, actorId: user!.userId, action: "bill.payment.created", resourceType: "payment", resourceId: payment.paymentId });

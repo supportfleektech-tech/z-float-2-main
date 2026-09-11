@@ -32,8 +32,37 @@ export async function POST(request: NextRequest) {
   const phone = normalizeKenyanPhone(String(b.phone ?? ""));
   if (!phone) return apiError(400, "INVALID_PHONE", "Enter a valid Kenyan phone number");
 
-  const [product] = await db.select().from(schema.airtimeCatalog).where(eq(schema.airtimeCatalog.id, productId)).limit(1);
-  if (!product) return apiError(404, "NOT_FOUND", "Airtime product not found");
+  let amount: string;
+  let product: string;
+  let remark: string;
+  let category = "airtime";
+
+  if (productId === "custom") {
+    // Custom amount airtime/data. Product stays "airtime" (the validated
+    // product family for fee lookup); the AIRTIME/DATA distinction travels
+    // in category + remark.
+    const customAmount = String(b.customAmount ?? "");
+    const customNetwork = String(b.customNetwork ?? "SAF");
+    const customType = String(b.customType ?? "AIRTIME").toUpperCase();
+    if (customType !== "AIRTIME" && customType !== "DATA") {
+      return apiError(400, "INVALID_TYPE", "Type must be AIRTIME or DATA");
+    }
+    if (!customAmount || Number(customAmount) <= 0) {
+      return apiError(400, "INVALID_AMOUNT", "Enter a valid amount");
+    }
+    amount = customAmount;
+    product = "airtime";
+    remark = `Custom ${customType} (${customNetwork})`;
+    category = customType.toLowerCase();
+  } else {
+    // Predefined product
+    const [predefinedProduct] = await db.select().from(schema.airtimeCatalog).where(eq(schema.airtimeCatalog.id, productId)).limit(1);
+    if (!predefinedProduct) return apiError(404, "NOT_FOUND", "Airtime product not found");
+    amount = (Number(predefinedProduct.denominationMinor) / 100).toFixed(2);
+    product = predefinedProduct.type.toLowerCase();
+    remark = `${predefinedProduct.name} (${predefinedProduct.network})`;
+    category = predefinedProduct.type.toLowerCase();
+  }
 
   const [wallet] = await db.select().from(schema.wallets).where(eq(schema.wallets.tenantId, user!.tenantId!)).limit(1);
   if (!wallet) return apiError(400, "NO_WALLET", "No wallet configured for this workspace");
@@ -42,12 +71,12 @@ export async function POST(request: NextRequest) {
     const { payment } = await createPayment(db, {
       tenantId: user!.tenantId!,
       actorId: user!.userId,
-      amount: (Number(product.denominationMinor) / 100).toFixed(2),
+      amount,
       channel: "mpesa",
-      product: "airtime",
+      product,
       sourceWalletId: wallet.id,
-      category: "airtime",
-      remark: `${product.name} (${product.network})`,
+      category,
+      remark,
       recipient: { name: `Airtime: ${phone}`, phone },
       idempotencyKey: `airtime-${crypto.randomUUID()}`,
     });
