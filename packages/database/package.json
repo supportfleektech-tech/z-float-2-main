@@ -22,8 +22,11 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@zfloat/auth": "workspace:*",
     "@zfloat/config": "workspace:*",
+    "@zfloat/ledger": "workspace:*",
     "@zfloat/money": "workspace:*",
+    "@zfloat/payments-core": "workspace:*",
     "@zfloat/providers": "workspace:^",
     "drizzle-orm": "^0.36.4",
     "pg": "^8.13.1",

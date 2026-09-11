@@ -2,7 +2,7 @@
   "name": "zfloat",
   "version": "1.0.0",
   "private": true,
-  "description": "Z-float \u2014 Kenya-first business payment operations platform (modular monolith).",
+  "description": "Z-float — Kenya-first business payment operations platform (modular monolith).",
   "engines": {
     "node": ">=20.11.0",
     "pnpm": ">=9.0.0"
