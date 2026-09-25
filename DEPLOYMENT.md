@@ -97,7 +97,7 @@ OUTBOX_RELAY_LEASE_KEY=723993002
 1. Go to [vercel.com](https://vercel.com) → Add New Project → Import `z-float-2-main`
 2. **Root Directory**: `apps/web`
 3. **Framework Preset**: Next.js (auto-detected)
-4. **Build Command**: `pnpm install --frozen-lockfile && pnpm build` (auto from vercel.json)
+4. **Build Command**: leave empty. `apps/web/vercel.json` installs at the monorepo root, builds the workspace packages (two passes, because the workspace has dependency cycles), then builds the web app. Vercel only reads `vercel.json` from the project's Root Directory, so the Root Directory **must** be `apps/web`.
 5. **Output Directory**: `.next` (default)
 
 ### Environment Variables (in Vercel Project Settings → Environment Variables)
@@ -114,7 +114,10 @@ MOCK_PROVIDER_SECRET=<same as Railway>
 COOKIE_SECURE=true
 ADMIN_EMAIL=admin@zfloat.app
 SECRETS_DRIVER=none
+MALWARE_SCANNER_DRIVER=clamav      # required: production refuses the mock scanner
 ```
+
+`next build` runs with `NODE_ENV=production`, so the config guard runs at **build** time: `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET` and a real 64-hex-char `ENCRYPTION_KEY` must be set for the Build environment too, or the build fails with `[config] Production environment is missing critical variables`.
 
 **Important**: Use the **same** `SESSION_SECRET`, `ENCRYPTION_KEY`, `MOCK_PROVIDER_SECRET` across Vercel + both Railway services.
 
