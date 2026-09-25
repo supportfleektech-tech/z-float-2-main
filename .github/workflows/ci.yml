@@ -80,7 +80,9 @@ jobs:
         run: pnpm test
 
       - name: Web build (production compile check)
-        run: pnpm --filter @zfloat/web build
+        run: |
+          set -o pipefail
+          pnpm --filter @zfloat/web build 2>&1 | tee /tmp/web-build.log || { grep -iE "error|failed|missing|refus|cannot" /tmp/web-build.log | head -25 | while IFS= read -r l; do echo "::error title=webbuild::$l"; done; exit 1; }
         env:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
