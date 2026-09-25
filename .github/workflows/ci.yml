@@ -61,10 +61,14 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Migrate + seed test DB
+        # The service superuser is `zfloat` (there is no `postgres` role).
+        # Package tests connect to DATABASE_URL_TEST, so migrate + seed both DBs.
         run: |
-          createdb -h localhost -U postgres zfloat_test || true
+          createdb -h localhost -U zfloat zfloat_test
           pnpm --filter @zfloat/database db:migrate
           pnpm --filter @zfloat/database db:seed
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm --filter @zfloat/database db:migrate
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm --filter @zfloat/database db:seed
         env:
           PGPASSWORD: zfloat_dev_password
 
