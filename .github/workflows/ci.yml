@@ -48,11 +48,16 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The workspace has dependency cycles (e.g. database <-> payments-core),
+      # so pnpm cannot topologically order a clean build. A first no-bail pass
+      # emits the dist/ types that the second, strict pass needs.
+      - name: Build all packages
+        run: |
+          pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
+          pnpm -r build
+
       - name: Typecheck all packages
         run: pnpm -r typecheck
-
-      - name: Build all packages
-        run: pnpm -r build
 
       - name: Migrate + seed test DB
         run: |
@@ -112,7 +117,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm -r build
+        run: |
+          pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
+          pnpm -r build
 
       - name: Web build (production — required by next start)
         run: pnpm --filter @zfloat/web build
