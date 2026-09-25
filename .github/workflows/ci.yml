@@ -50,11 +50,12 @@ jobs:
 
       # The workspace has dependency cycles (e.g. database <-> payments-core),
       # so pnpm cannot topologically order a clean build. A first no-bail pass
-      # emits the dist/ types that the second, strict pass needs.
+      # emits the dist/ types that the second, strict pass needs. apps/web is
+      # built in its own step below, with production secrets.
       - name: Build all packages
         run: |
           pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
-          pnpm -r build
+          pnpm -r --filter './packages/*' --filter './services/*' build
 
       - name: Typecheck all packages
         run: pnpm -r typecheck
@@ -119,7 +120,7 @@ jobs:
       - name: Build
         run: |
           pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
-          pnpm -r build
+          pnpm -r --filter './packages/*' --filter './services/*' build
 
       - name: Web build (production — required by next start)
         run: pnpm --filter @zfloat/web build
