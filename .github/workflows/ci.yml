@@ -132,7 +132,7 @@ jobs:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
           ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
-          DEMO_MODE: "false"
+          DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
 
@@ -147,15 +147,33 @@ jobs:
         working-directory: apps/web
         run: npx playwright install --with-deps chromium
 
+      # The suite exercises the demo walkthrough deployment class (production
+      # build + DEMO_MODE=true — see packages/config/src/env.ts): built-in demo
+      # approval policy and the invite-link bridge. Approved payments are
+      # executed by the worker, so it must be running.
+      - name: Start worker
+        run: |
+          nohup pnpm --filter @zfloat/worker start > /tmp/worker.log 2>&1 &
+          for i in $(seq 1 30); do grep -q "queue workers" /tmp/worker.log && break; sleep 1; done
+          cat /tmp/worker.log
+          grep -q "queue workers" /tmp/worker.log
+        env:
+          NODE_ENV: production
+          SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+          DEMO_MODE: "true"
+          SEED_DEMO_DATA: "false"
+          MALWARE_SCANNER_DRIVER: clamav
+
       - name: E2E (production server — deterministic, demo login enabled via seed)
         working-directory: apps/web
-        run: pnpm test:e2e --reporter=github,list  # TEMP reporter
+        run: pnpm test:e2e
         env:
           E2E_BASE_URL: http://localhost:3000
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
           ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
-          DEMO_MODE: "false"
+          DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
 

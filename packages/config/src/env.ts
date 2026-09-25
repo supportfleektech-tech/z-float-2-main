@@ -228,7 +228,8 @@ export function loadConfig(options: ConfigOptions = {}): AppEnv {
     }
     if ((source.MALWARE_SCANNER_DRIVER ?? "mock") === "mock") {
       throw new Error("[config] MALWARE_SCANNER_DRIVER=mock is not allowed in production. Configure clamav.");
-    }    // KRA eTIMS: a production environment signed by the local sandbox signer
+    }
+    // KRA eTIMS: a production environment signed by the local sandbox signer
     // would hand customers documents that look fiscal but are not.
     if (source.ETIMS_ENVIRONMENT === "production" && (source.ETIMS_DRIVER ?? "sandbox") === "sandbox") {
       throw new Error("[config] ETIMS_ENVIRONMENT=production requires ETIMS_DRIVER=oscu or vscu (the sandbox signer is not fiscal).");
