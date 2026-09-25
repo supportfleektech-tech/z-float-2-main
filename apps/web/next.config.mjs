@@ -6,6 +6,7 @@ const nextConfig = {
     "@zfloat/auth",
     "@zfloat/config",
     "@zfloat/database",
+    "@zfloat/etims",
     "@zfloat/ledger",
     "@zfloat/money",
     "@zfloat/notifications",
@@ -19,6 +20,10 @@ const nextConfig = {
     serverComponentsExternalPackages: ["pg", "bullmq", "@valkey/valkey-glide"],
   },
   output: "standalone",
+  // Provider callbacks registered before the route move still resolve.
+  async rewrites() {
+    return [{ source: "/api/v1/webhooks/:path*", destination: "/api/webhooks/:path*" }];
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

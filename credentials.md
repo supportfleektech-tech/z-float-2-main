@@ -53,6 +53,12 @@ Registration path (Kenya):
 | 2.6 | Callback base URL | `MPESA_CALLBACK_BASE_URL` | Your domain | Must be public HTTPS: `https://pay.example.com` — the adapter appends `/api/webhooks/mpesa`. No `localhost`. |
 | 2.7 | B2C initiator | `MPESA_B2C_INITIATOR_NAME` | Safaricom (B2C only) | API user created in your org's M-Pesa settings. |
 | 2.8 | B2C security credential | `MPESA_B2C_SECURITY_CREDENTIAL` | Safaricom (B2C only) | Base64-encrypted initiator password per Daraja spec. Vault. |
+| 2.9 | Till number (optional) | `MPESA_TILL_NUMBER` | Safaricom | Shown to customers alongside the paybill. |
+| 2.10 | C2B callback token | `MPESA_C2B_CALLBACK_TOKEN` | Generate (32+ random chars) | Appended as `?token=` to the C2B URLs you register; C2B callbacks are unsigned. Required in production. Vault. |
+| 2.11 | eTIMS driver | `ETIMS_DRIVER` | — | `oscu` (or `vscu`) in production; `sandbox` signer only for dev/demo. |
+| 2.12 | eTIMS environment | `ETIMS_ENVIRONMENT` | — | `production` only after KRA certification; refused with the sandbox driver. |
+| 2.13 | eTIMS base URL (VSCU) | `ETIMS_API_BASE_URL` | Your VSCU host | Required for `vscu`; optional override for `oscu`. |
+| 2.14 | eTIMS device serial + business PIN | entered in the portal | KRA eTIMS portal / GavaConnect | Per branch. The returned cmcKey is stored encrypted in `etims_devices` — never in env. |
 
 **Certification procedure (what proves it works):** see `guide.md` §6.1 — the
 adapter is already contract-tested 10/10 against a Daraja-protocol emulator;

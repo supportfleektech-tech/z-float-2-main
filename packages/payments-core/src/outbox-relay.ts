@@ -25,6 +25,7 @@ import { queueNotification } from "@zfloat/notifications";
 import { markBatchRowOutcome, refreshBatchStatus } from "./bulk.js";
 import { fanoutWebhookDeliveries } from "./outbound.js";
 import { markFailed, markPublished, pullUnpublished } from "./outbox.js";
+import { EtimsError, fiscaliseDocument, issueReceiptForCollection } from "@zfloat/etims";
 import { getConfig } from "@zfloat/config";
 
 /** Advisory-lock key shared by every relay/worker deployment (arbitrary int8). Default: 723993001. Configurable via OUTBOX_RELAY_LEASE_KEY env var. */
@@ -141,6 +142,52 @@ export async function handleOutboxEvent(db: Db, event: OutboxEventRef): Promise<
         body: `${title} — ${String(payload.paymentId ?? "")}`,
         data: payload,
       });
+      break;
+    }
+    case "collection.received": {
+      // Receipt first (KRA eTIMS), then tell the business. An eTIMS outage
+      // never blocks the notification: issueReceiptForCollection queues a
+      // retry itself and returns the unsigned document.
+      const collectionId = String(payload.collectionId ?? "");
+      let receiptNote = "";
+      if (collectionId) {
+        try {
+          const receipt = await issueReceiptForCollection(db, { collectionId });
+          if (receipt) receiptNote = ` Receipt ${receipt.number}${receipt.status === "SIGNED" ? " (eTIMS signed)" : ""}.`;
+        } catch {
+          // receipt problems are visible on the invoices page; never fail the relay for them
+        }
+      }
+      const amount = Number(BigInt(String(payload.amountMinor ?? "0")) / 100n).toLocaleString("en-KE");
+      await queueNotification(db, {
+        tenantId: event.tenantId ?? undefined,
+        channel: "IN_APP",
+        title: "Payment received",
+        body: `KES ${amount} received${payload.payerName ? ` from ${String(payload.payerName)}` : ""} via ${String(payload.channel ?? "collection").replace("_", " ")}.${receiptNote}`,
+        data: payload,
+      });
+      break;
+    }
+    case "collection.failed": {
+      await queueNotification(db, {
+        tenantId: event.tenantId ?? undefined,
+        channel: "IN_APP",
+        title: "Payment request not completed",
+        body: `${String(payload.collectionNumber ?? "")}: ${String(payload.reason ?? "failed")}`,
+        data: payload,
+      });
+      break;
+    }
+    case "etims.fiscalise_requested": {
+      const documentId = String(payload.documentId ?? "");
+      if (documentId && event.tenantId) {
+        try {
+          await fiscaliseDocument(db, { tenantId: event.tenantId, documentId });
+        } catch (err) {
+          // Transient KRA errors → throw so the outbox retries; rejections stay FAILED for a human.
+          if (!(err instanceof EtimsError) || err.retryable) throw err;
+        }
+      }
       break;
     }
     default:

@@ -40,6 +40,7 @@ async function waitForServer(url: string, tries = 50): Promise<void> {
 }
 
 beforeAll(async () => {
+  if (!hasMinio) return; // suite is skipped; do not try to spawn a missing binary
   dataDir = await mkdtemp(path.join(tmpdir(), "zfloat-minio-"));
   // Port 0 → let the OS assign; we read it from the log.
   server = spawn(MINIO_BIN, ["server", dataDir, "--address", "127.0.0.1:0"], {
