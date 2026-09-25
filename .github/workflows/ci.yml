@@ -157,13 +157,17 @@ jobs:
           for i in $(seq 1 30); do grep -q "queue workers" /tmp/worker.log && break; sleep 1; done
           cat /tmp/worker.log
           grep -q "queue workers" /tmp/worker.log
+        # The worker runs in development mode so it can use the mock malware
+        # scanner (production refuses it, and CI has no clamd). The web app
+        # under test is still the production build.
         env:
-          NODE_ENV: production
-          SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
+          NODE_ENV: development
           ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
           DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
-          MALWARE_SCANNER_DRIVER: clamav
+          MALWARE_SCANNER_DRIVER: mock
+          EMAIL_DRIVER: sink
+          OPS_ALERT_EMAILS: ops@example.com
 
       - name: E2E (production server — deterministic, demo login enabled via seed)
         working-directory: apps/web
@@ -176,6 +180,10 @@ jobs:
           DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
+          EMAIL_DRIVER: sink
+          OPS_ALERT_EMAILS: ops@example.com
+          # Test-posture override: the suite signs in >20 times/min from one IP.
+          AUTH_LOGIN_RATE_MAX: "1000"
 
       - uses: actions/upload-artifact@v4
         if: failure()
