@@ -80,13 +80,11 @@ jobs:
         run: pnpm test
 
       - name: Web build (production compile check)
-        run: |
-          set -o pipefail
-          pnpm --filter @zfloat/web build 2>&1 | tee /tmp/web-build.log || { grep -E "^\s+- [A-Z_]+:|Invalid environment" /tmp/web-build.log | sort -u | head -25 | while IFS= read -r l; do echo "::error title=webbuild::$l"; done; exit 1; }
+        run: pnpm --filter @zfloat/web build
         env:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
           DEMO_MODE: "false"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
@@ -133,7 +131,7 @@ jobs:
         env:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
           DEMO_MODE: "false"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
@@ -156,7 +154,7 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
           DEMO_MODE: "false"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
