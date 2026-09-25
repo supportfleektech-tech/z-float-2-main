@@ -149,7 +149,7 @@ jobs:
 
       - name: E2E (production server — deterministic, demo login enabled via seed)
         working-directory: apps/web
-        run: pnpm test:e2e
+        run: pnpm test:e2e --reporter=github,list  # TEMP reporter
         env:
           E2E_BASE_URL: http://localhost:3000
           NODE_ENV: production
