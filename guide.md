@@ -138,6 +138,24 @@ away from `local-sandbox`.
    runbook RB-03/RB-15 SQL).
 5. Update `docs/KNOWN_LIMITATIONS.md` #1 and flip the provider default.
 
+### 6.1a Collections (STK push + C2B) and KRA eTIMS
+Full reference: `docs/COLLECTIONS_AND_ETIMS.md`.
+1. **STK push**: needs `MPESA_PASSKEY` + `MPESA_SHORTCODE`. Callbacks arrive
+   on the same `/api/webhooks/mpesa` endpoint as B2C and are matched to a
+   collection by `CheckoutRequestID`.
+2. **C2B**: set `MPESA_C2B_CALLBACK_TOKEN` (random, 32+ chars), then register
+   the URLs once from a Node shell:
+   `await new MpesaProviderAdapter().registerC2BUrls()`. Set each business's
+   paybill account reference in *Settings → eTIMS & collections*.
+3. **eTIMS**: KRA sandbox first: `ETIMS_DRIVER=oscu ETIMS_ENVIRONMENT=sandbox`,
+   connect the device from the portal with the KRA-issued serial, and run
+   KRA's test scenarios (invoice, receipt, credit note). Then
+   `ETIMS_ENVIRONMENT=production`. The worker retries `QUEUED` documents
+   every 2 minutes; `FAILED` ones show KRA's message on the invoices page.
+4. Smoke: request KES 1 by STK to a test phone, pay, and confirm the collection
+   is `SUCCESS`, the wallet is credited, and a `SIGNED` receipt verifies on the
+   KRA portal via its QR.
+
 ### 6.2 PesaLink / bank rails
 1. Insert §3 credentials from your bank partner.
 2. Contract-verify `bank-psp` (same adapter suite) with the partner's docs;
@@ -299,6 +317,8 @@ action only executes on approval, and every action is in the audit trail.
 - [ ] Batch-D certifications done (§6): Daraja live smoke, bank/PesaLink
       sandbox, real-S3 report round-trip, KMS vault live, SMTP+SMS test
       sends, watchlist/verify vendors chosen and wired.
+- [ ] Collections + eTIMS live (§6.1a): OSCU device ACTIVE per branch, item
+      classification codes mapped, C2B URLs registered with a callback token.
 - [ ] Restore drill exercised (RB-05); monitoring dashboards/alerts live;
       `pnpm evidence` baseline archived.
 - [ ] Legal/compliance: ODPC DPA pack filled with the real entity; no

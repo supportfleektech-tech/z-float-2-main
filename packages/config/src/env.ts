@@ -104,6 +104,28 @@ const envSchema = z.object({
   MPESA_B2C_SECURITY_CREDENTIAL: z.string().default(""),
   MPESA_TIMEOUT_MS: z.coerce.number().default(15000),
 
+  /** Buy-Goods till for STK "till" collections (CustomerBuyGoodsOnline). Empty = paybill only. */
+  MPESA_TILL_NUMBER: z.string().default(""),
+  /** Optional shared token appended to C2B validation/confirmation URLs (?token=) — Daraja C2B callbacks are unsigned. */
+  MPESA_C2B_CALLBACK_TOKEN: z.string().default(""),
+
+  /**
+   * KRA eTIMS (electronic Tax Invoice Management System).
+   *  - sandbox : deterministic local signer — documents are stamped SANDBOX
+   *              and are NOT valid tax invoices (default for dev/demo).
+   *  - oscu    : KRA-hosted Online Sales Control Unit (spec v2.0) over HTTPS.
+   *  - vscu    : self-hosted Virtual SCU jar (same API, ETIMS_API_BASE_URL
+   *              points at the jar, e.g. http://vscu:8088).
+   *  - disabled: no fiscalisation; invoices stay un-signed drafts.
+   */
+  ETIMS_DRIVER: z.enum(["sandbox", "oscu", "vscu", "disabled"]).default("sandbox"),
+  ETIMS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  /** Override the OSCU base URL (required for vscu). */
+  ETIMS_API_BASE_URL: z.string().optional(),
+  ETIMS_TIMEOUT_MS: z.coerce.number().default(20000),
+  /** HMAC key for the sandbox signer — only affects SANDBOX documents. */
+  ETIMS_SANDBOX_SECRET: z.string().default("etims-sandbox-dev-secret"),
+
   BANK_API_BASE_URL: z.string().optional(),
   BANK_API_KEY: z.string().optional(),
   BANK_API_SECRET: z.string().optional(),
@@ -206,6 +228,11 @@ export function loadConfig(options: ConfigOptions = {}): AppEnv {
     }
     if ((source.MALWARE_SCANNER_DRIVER ?? "mock") === "mock") {
       throw new Error("[config] MALWARE_SCANNER_DRIVER=mock is not allowed in production. Configure clamav.");
+    }
+    // KRA eTIMS: a production environment signed by the local sandbox signer
+    // would hand customers documents that look fiscal but are not.
+    if (source.ETIMS_ENVIRONMENT === "production" && (source.ETIMS_DRIVER ?? "sandbox") === "sandbox") {
+      throw new Error("[config] ETIMS_ENVIRONMENT=production requires ETIMS_DRIVER=oscu or vscu (the sandbox signer is not fiscal).");
     }
   }
 

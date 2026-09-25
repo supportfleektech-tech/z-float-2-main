@@ -107,6 +107,60 @@ export interface PaymentProvider {
   verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook>;
 }
 
+/* ------------------------------------------------------------------ */
+/* Collections (receiving money)                                       */
+/* ------------------------------------------------------------------ */
+
+export interface CollectionRequestInput {
+  /** Z-float collection id. */
+  collectionId: string;
+  /** Human reference (collection number). */
+  reference: string;
+  amountMinor: bigint;
+  currency: "KES";
+  /** Payer phone, E.164 (+2547…). The STK prompt is pushed to this handset. */
+  phone: string;
+  /** Account reference shown to the payer (≤12 chars on Daraja). */
+  accountReference: string;
+  description: string;
+  /** Pay into the paybill (default) or a Buy-Goods till. */
+  kind?: "paybill" | "till";
+}
+
+export interface CollectionRequestResult {
+  status: ProviderResultStatus;
+  /** STK CheckoutRequestID — the callback correlates on it. */
+  providerReference?: string;
+  async: boolean;
+  customerMessage?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  raw?: Record<string, unknown>;
+}
+
+/** A provider that can pull money from a payer (e.g. M-Pesa STK push / Express). */
+export interface CollectionProvider {
+  requestCollection(input: CollectionRequestInput): Promise<CollectionRequestResult>;
+}
+
+export function isCollectionProvider(p: unknown): p is PaymentProvider & CollectionProvider {
+  return typeof (p as { requestCollection?: unknown })?.requestCollection === "function";
+}
+
+/** Normalised M-Pesa C2B confirmation (paybill / till payment initiated by the customer). */
+export interface C2BConfirmation {
+  transId: string;
+  transType: string;
+  transTime: string;
+  amountMinor: bigint;
+  shortCode: string;
+  billRefNumber: string;
+  invoiceNumber: string;
+  msisdn: string;
+  payerName: string;
+  raw: Record<string, unknown>;
+}
+
 /** Airtime-specific query surface (extends the base contract). */
 export interface AirtimeCatalogEntry {
   network: string;

@@ -1,0 +1,13 @@
+{
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && (pnpm -r --no-bail --filter './packages/*' build || true) && pnpm -r --filter './packages/*' build && pnpm --filter @zfloat/web build",
+  "outputDirectory": ".next",
+  "devCommand": "pnpm dev",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

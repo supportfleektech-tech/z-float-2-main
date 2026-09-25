@@ -34,7 +34,8 @@ import {
   runReportScheduleDispatch,
   resumeInterruptedBatches,
 } from "./jobs.js";
-import { runOutboxPoller, handleOutboxEvent } from "@zfloat/payments-core";
+import { runOutboxPoller, handleOutboxEvent, expireStaleCollections } from "@zfloat/payments-core";
+import { retryQueuedDocuments } from "@zfloat/etims";
 import { applySecretsToEnv } from "@zfloat/secrets";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -262,6 +263,22 @@ async function main() {
       }
     }, 60_000);
     monitor.unref();
+
+    // Collections + eTIMS: expire unanswered STK prompts (payer never entered
+    // their PIN) and re-send documents queued while KRA was unreachable.
+    const collectionsTimer = setInterval(async () => {
+      try {
+        const expired = await expireStaleCollections(db);
+        const etims = await retryQueuedDocuments(db);
+        if (expired > 0 || etims.scanned > 0) {
+          // eslint-disable-next-line no-console
+          console.log(`[worker] collections: expired ${expired}; eTIMS retried ${etims.scanned}, signed ${etims.signed}`);
+        }
+      } catch {
+        // next run
+      }
+    }, 2 * 60_000);
+    collectionsTimer.unref();
 
     const scheduleTimer = setInterval(async () => {
       try {

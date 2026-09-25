@@ -17,9 +17,17 @@ const NAV = [
     items: [
       { label: "Initiate payment", href: "/portal/payments/new", icon: "→" },
       { label: "Bulk upload", href: "/portal/payments/bulk", icon: "⇧" },
-      { label: "Payment links", href: "/portal/payment-links", icon: "🔗" },
       { label: "Saved recipients", href: "/portal/recipients", icon: "☰" },
       { label: "Scheduled payments", href: "/portal/schedules", icon: "◷" },
+    ],
+  },
+  {
+    section: "Receive",
+    items: [
+      { label: "Receive payments", href: "/portal/collections", icon: "←" },
+      { label: "eTIMS invoices", href: "/portal/invoices", icon: "🧾" },
+      { label: "Customers", href: "/portal/customers", icon: "☷" },
+      { label: "Payment links", href: "/portal/payment-links", icon: "🔗" },
     ],
   },
   {
@@ -51,6 +59,7 @@ const NAV = [
       { label: "Accounts & wallets", href: "/portal/accounts", icon: "◈" },
       { label: "Team & roles", href: "/portal/team", icon: "☺" },
       { label: "Settings", href: "/portal/settings", icon: "⚙" },
+      { label: "eTIMS & collections", href: "/portal/settings/etims", icon: "⚙" },
       { label: "Support", href: "/portal/support", icon: "?" },
     ],
   },
@@ -73,19 +82,25 @@ export default function PortalLayout({
 
   useEffect(() => {
     const ctrl = new AbortController();
+    // Cleanup (unmount / StrictMode double-invoke) aborts the request too —
+    // that must not be mistaken for "no session" and bounce the user to login.
+    let disposed = false;
     const timer = setTimeout(() => ctrl.abort(), 8000);
     fetch("/api/auth/me", { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (disposed) return;
         setUser(d?.user ?? null);
         setLoading(false);
       })
       .catch(() => {
+        if (disposed) return;
         setUser(null);
         setLoading(false);
       })
       .finally(() => clearTimeout(timer));
     return () => {
+      disposed = true;
       clearTimeout(timer);
       ctrl.abort();
     };

@@ -17,7 +17,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml,css}\"",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "test:unit": "pnpm -r --workspace-concurrency=1 --filter '@zfloat/money' --filter '@zfloat/validation' --filter '@zfloat/ledger' --filter '@zfloat/approvals' --filter '@zfloat/providers' --filter '@zfloat/payments-core' --filter '@zfloat/database' --filter '@zfloat/kyc' --filter '@zfloat/notifications' --filter '@zfloat/auth' --filter '@zfloat/secrets' --filter '@zfloat/storage' --filter '@zfloat/queue' --filter '@zfloat/observability' test",
+    "test:unit": "pnpm -r --workspace-concurrency=1 --filter '@zfloat/money' --filter '@zfloat/validation' --filter '@zfloat/etims' --filter '@zfloat/ledger' --filter '@zfloat/approvals' --filter '@zfloat/providers' --filter '@zfloat/payments-core' --filter '@zfloat/database' --filter '@zfloat/kyc' --filter '@zfloat/notifications' --filter '@zfloat/auth' --filter '@zfloat/secrets' --filter '@zfloat/storage' --filter '@zfloat/queue' --filter '@zfloat/observability' test",
     "test:integration": "pnpm -r --workspace-concurrency=1 --filter '@zfloat/approvals' --filter '@zfloat/audit' --filter '@zfloat/ledger' --filter '@zfloat/payments-core' --filter '@zfloat/kyc' test",
     "test:e2e": "pnpm --filter @zfloat/web test:e2e",
     "db:generate": "pnpm --filter @zfloat/database db:generate",

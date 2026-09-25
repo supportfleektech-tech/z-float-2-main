@@ -179,7 +179,7 @@ export async function scanFile(db: Db, fileId: string): Promise<"CLEAN" | "INFEC
   const driver = process.env.MALWARE_SCANNER_DRIVER ?? "mock";
   let result: "CLEAN" | "INFECTED" | "ERROR";
   if (driver === "clamav") {
-    result = await clamavScan(file.storageKey);
+    result = await clamavScan(file.storageKey, file.checksumSha256);
   } else {
     // mock: reject obvious script bombs, accept everything else
     const ext = file.filename.split(".").pop()?.toLowerCase() ?? "";
@@ -189,27 +189,33 @@ export async function scanFile(db: Db, fileId: string): Promise<"CLEAN" | "INFEC
   return result;
 }
 
-async function clamavScan(storageKey: string): Promise<"CLEAN" | "INFECTED" | "ERROR"> {
-  const net = await import("node:net");
-  const host = process.env.CLAMAV_HOST ?? "127.0.0.1";
-  const port = Number(process.env.CLAMAV_PORT ?? 3310);
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
-    const onData = (data: Buffer) => {
-      const text = data.toString();
-      socket.destroy();
-      if (text.includes("FOUND")) resolve("INFECTED");
-      else if (text.includes("OK")) resolve("CLEAN");
-      else resolve("ERROR");
-    };
-  socket.on("connect", () => socket.write(`zINSTREAM\u0000${storageKey}\u0000`));
-    socket.on("data", onData);
-    socket.on("error", () => resolve("ERROR"));
-    setTimeout(() => {
-      socket.destroy();
-      resolve("ERROR");
-    }, 10_000);
+/**
+ * Scan the stored object's BYTES with clamd (INSTREAM). Fails closed: any
+ * storage, integrity or clamd problem yields ERROR, never CLEAN.
+ */
+async function clamavScan(storageKey: string, expectedSha256: string | null): Promise<"CLEAN" | "INFECTED" | "ERROR"> {
+  const { getObjectStore, clamdScan } = await import("@zfloat/storage");
+  let body: Buffer;
+  try {
+    body = await getObjectStore().get(storageKey);
+  } catch (err) {
+    console.error(`[worker] files.scan: cannot read ${storageKey}: ${(err as Error).message}`);
+    return "ERROR";
+  }
+  if (expectedSha256) {
+    const { createHash } = await import("node:crypto");
+    const actual = createHash("sha256").update(body).digest("hex");
+    if (actual !== expectedSha256) {
+      console.error(`[worker] files.scan: checksum mismatch for ${storageKey}`);
+      return "ERROR";
+    }
+  }
+  const { verdict, detail } = await clamdScan(body, {
+    host: process.env.CLAMAV_HOST ?? "127.0.0.1",
+    port: Number(process.env.CLAMAV_PORT ?? 3310),
   });
+  if (verdict !== "CLEAN") console.warn(`[worker] files.scan ${storageKey}: ${verdict} (${detail})`);
+  return verdict;
 }
 
 /** reports.generate — async CSV export. Writes tenant-scoped payment data to REPORT_STORAGE_DIR. */

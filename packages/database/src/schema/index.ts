@@ -27,6 +27,10 @@ export const users = pgTable(
     email: varchar("email", { length: 254 }).notNull(),
     phone: varchar("phone", { length: 20 }),
     fullName: varchar("full_name", { length: 200 }).notNull(),
+    /** Identity (migration 019): ID document + KRA PIN for staff identification. */
+    idType: varchar("id_type", { length: 20 }),
+    idNumber: varchar("id_number", { length: 30 }),
+    kraPin: varchar("kra_pin", { length: 11 }),
     passwordHash: text("password_hash"),
     status: varchar("status", { length: 30 }).notNull().default("PENDING_INVITE"), // ACTIVE | SUSPENDED | PENDING_INVITE | DISABLED
     mfaEnabled: boolean("mfa_enabled").notNull().default(false),
@@ -171,6 +175,10 @@ export const tenants = pgTable(
     riskTier: varchar("risk_tier", { length: 20 }).notNull().default("STANDARD"),
     kybStatus: varchar("kyb_status", { length: 30 }).notNull().default("NOT_SUBMITTED"),
     defaultCurrency: varchar("default_currency", { length: 3 }).notNull().default("KES"),
+    /** Business KRA PIN (P-PIN) — the eTIMS seller TIN (migration 019). */
+    kraPin: varchar("kra_pin", { length: 11 }),
+    /** Short account code customers quote as the M-Pesa C2B account number (migration 019). */
+    collectionAccountRef: varchar("collection_account_ref", { length: 20 }),
     settings: jsonb("settings").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -248,6 +256,10 @@ export const beneficiaries = pgTable(
     tillNumber: varchar("till_number", { length: 12 }),
     paybillNumber: varchar("paybill_number", { length: 12 }),
     paybillAccount: varchar("paybill_account", { length: 40 }),
+    /** Identity (migration 019): NATIONAL_ID | ALIEN_ID | PASSPORT | MILITARY_ID | COMPANY_REG. */
+    idType: varchar("id_type", { length: 20 }),
+    idNumber: varchar("id_number", { length: 30 }),
+    kraPin: varchar("kra_pin", { length: 11 }),
     status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
     riskFlags: varchar("risk_flags", { length: 40 }).array().default(sql`'{}'::varchar[]`),
     notes: text("notes"),
@@ -255,7 +267,12 @@ export const beneficiaries = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("beneficiaries_tenant_idx").on(t.tenantId), index("beneficiaries_phone_idx").on(t.phone)],
+  (t) => [
+    index("beneficiaries_tenant_idx").on(t.tenantId),
+    index("beneficiaries_phone_idx").on(t.phone),
+    index("beneficiaries_tenant_kra_idx").on(t.tenantId, t.kraPin),
+    index("beneficiaries_tenant_idno_idx").on(t.tenantId, t.idNumber),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -584,7 +601,7 @@ export const walletLedgerEntries = pgTable(
      * available) | APPLY (reserved -> settled, reserved only).
      */
     entryType: varchar("entry_type", { length: 24 }).notNull(),
-    refType: varchar("ref_type", { length: 30 }), // payment | funding | payment_link
+    refType: varchar("ref_type", { length: 30 }), // payment | funding | payment_link | collection
     refId: uuid("ref_id"),
     /** Operation amount (positive minor units). */
     amountMinor: minor("amount_minor").notNull(),
@@ -1576,5 +1593,193 @@ export const apiKeys = pgTable(
   (t) => [
     index("api_keys_tenant_idx").on(t.tenantId),
     index("api_keys_hash_idx").on(t.keyHash),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* Collections (receiving money) + customers — migration 019           */
+/* ------------------------------------------------------------------ */
+
+/** Payers / buyers — the receiving-side counterpart of beneficiaries. */
+export const customers = pgTable(
+  "customers",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 20 }).notNull().default("individual"), // individual | business
+    name: varchar("name", { length: 200 }).notNull(),
+    phone: varchar("phone", { length: 20 }),
+    email: varchar("email", { length: 254 }),
+    idType: varchar("id_type", { length: 20 }),
+    idNumber: varchar("id_number", { length: 30 }),
+    kraPin: varchar("kra_pin", { length: 11 }),
+    address: text("address"),
+    notes: text("notes"),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("customers_tenant_idx").on(t.tenantId),
+    index("customers_tenant_phone_idx").on(t.tenantId, t.phone),
+    index("customers_tenant_kra_idx").on(t.tenantId, t.kraPin),
+    index("customers_tenant_idno_idx").on(t.tenantId, t.idNumber),
+  ],
+);
+
+export const collectionStatuses = ["PENDING", "SUCCESS", "FAILED", "CANCELLED", "EXPIRED"] as const;
+
+/**
+ * Inbound money. Every receive path (M-Pesa STK push, M-Pesa C2B paybill/till,
+ * payment links, bank transfers) lands here, and a SUCCESS row always credits
+ * the tenant wallet through a balanced funding journal.
+ */
+export const collections = pgTable(
+  "collections",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    collectionNumber: varchar("collection_number", { length: 40 }).notNull(),
+    walletId: uuid("wallet_id").notNull().references(() => wallets.id),
+    channel: varchar("channel", { length: 30 }).notNull(), // MPESA_STK | MPESA_C2B | PAYMENT_LINK | BANK_TRANSFER
+    status: varchar("status", { length: 20 }).notNull().default("PENDING"),
+    amountMinor: minor("amount_minor").notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("KES"),
+    accountReference: varchar("account_reference", { length: 60 }),
+    description: text("description"),
+    customerId: uuid("customer_id").references(() => customers.id),
+    payerName: varchar("payer_name", { length: 200 }),
+    payerPhone: varchar("payer_phone", { length: 20 }),
+    payerIdType: varchar("payer_id_type", { length: 20 }),
+    payerIdNumber: varchar("payer_id_number", { length: 30 }),
+    payerKraPin: varchar("payer_kra_pin", { length: 11 }),
+    /** Tax invoice this collection pays (etims_documents.id). */
+    invoiceId: uuid("invoice_id"),
+    /** eTIMS receipt issued for this collection (etims_documents.id). */
+    receiptId: uuid("receipt_id"),
+    paymentLinkId: uuid("payment_link_id"),
+    providerCode: varchar("provider_code", { length: 60 }),
+    /** STK CheckoutRequestID / C2B TransID / bank reference. */
+    providerReference: varchar("provider_reference", { length: 120 }),
+    /** M-Pesa receipt number (e.g. SFT3XYZ123) once confirmed. */
+    receiptNumber: varchar("receipt_number", { length: 40 }),
+    failureReason: text("failure_reason"),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }),
+    rawCallback: jsonb("raw_callback"),
+    requestedById: uuid("requested_by_id"),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("collections_number_uidx").on(t.collectionNumber),
+    uniqueIndex("collections_idem_uidx").on(t.tenantId, t.idempotencyKey),
+    index("collections_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("collections_tenant_status_idx").on(t.tenantId, t.status),
+    index("collections_provider_ref_idx").on(t.providerReference),
+    index("collections_invoice_idx").on(t.invoiceId),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* KRA eTIMS — migration 019                                           */
+/* ------------------------------------------------------------------ */
+
+/** One OSCU/VSCU "device" per tenant branch (KRA bhfId). */
+export const etimsDevices = pgTable(
+  "etims_devices",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    /** Seller KRA PIN (tin). */
+    kraPin: varchar("kra_pin", { length: 11 }).notNull(),
+    /** KRA branch id: "00" = head office, "01".. = branches. */
+    branchId: varchar("branch_id", { length: 2 }).notNull().default("00"),
+    deviceSerial: varchar("device_serial", { length: 100 }).notNull(),
+    driver: varchar("driver", { length: 20 }).notNull().default("sandbox"), // sandbox | oscu | vscu
+    status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING | ACTIVE | FAILED | DISABLED
+    /** Communication key from selectInitOsdcInfo — AES-256-GCM encrypted at rest. */
+    cmcKeyEncrypted: text("cmc_key_encrypted"),
+    sdcId: varchar("sdc_id", { length: 40 }),
+    mrcNo: varchar("mrc_no", { length: 40 }),
+    taxpayerName: varchar("taxpayer_name", { length: 200 }),
+    /** Monotonic invoice counter (KRA invcNo must be sequential per branch). */
+    lastInvoiceNo: integer("last_invoice_no").notNull().default(0),
+    autoReceipt: boolean("auto_receipt").notNull().default(true),
+    defaultTaxType: varchar("default_tax_type", { length: 1 }).notNull().default("B"),
+    lastError: text("last_error"),
+    initialisedAt: timestamp("initialised_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("etims_devices_tenant_branch_uidx").on(t.tenantId, t.branchId)],
+);
+
+/**
+ * Tax invoices, sales receipts, credit notes and payment receipts.
+ * Once SIGNED the fiscal fields are immutable (enforced by trigger, 019).
+ */
+export const etimsDocuments = pgTable(
+  "etims_documents",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    deviceId: uuid("device_id").references(() => etimsDevices.id),
+    docType: varchar("doc_type", { length: 20 }).notNull(), // INVOICE | RECEIPT | CREDIT_NOTE | PAYMENT_RECEIPT
+    /** Human number, e.g. INV-000123 / RCT-000045 / CRN-000002. */
+    number: varchar("number", { length: 40 }).notNull(),
+    /** KRA invcNo (sequential per device). */
+    invoiceNo: integer("invoice_no"),
+    /** For credit notes: the original document. For payment receipts: the invoice paid. */
+    originalDocumentId: uuid("original_document_id"),
+    status: varchar("status", { length: 20 }).notNull().default("DRAFT"), // DRAFT | QUEUED | SIGNED | FAILED | CANCELLED
+    paymentStatus: varchar("payment_status", { length: 20 }).notNull().default("UNPAID"), // UNPAID | PARTIAL | PAID | N/A
+    customerId: uuid("customer_id").references(() => customers.id),
+    customerName: varchar("customer_name", { length: 200 }),
+    customerPhone: varchar("customer_phone", { length: 20 }),
+    customerEmail: varchar("customer_email", { length: 254 }),
+    customerKraPin: varchar("customer_kra_pin", { length: 11 }),
+    customerIdType: varchar("customer_id_type", { length: 20 }),
+    customerIdNumber: varchar("customer_id_number", { length: 30 }),
+    currency: varchar("currency", { length: 3 }).notNull().default("KES"),
+    /** Lines with per-line tax: [{ description, itemCode, itemClassCode, qty, unitPriceMinor, discountMinor, taxType, taxableMinor, taxMinor, totalMinor }] */
+    lines: jsonb("lines").notNull(),
+    /** Per-category summary A–E: { A: { taxableMinor, taxMinor, rate }, ... } */
+    taxSummary: jsonb("tax_summary").notNull(),
+    subtotalMinor: minor("subtotal_minor").notNull(),
+    taxMinor: minor("tax_minor").notNull(),
+    totalMinor: minor("total_minor").notNull(),
+    paidMinor: minor("paid_minor").notNull().default(sql`0`),
+    paymentMethod: varchar("payment_method", { length: 20 }), // KRA pmtTyCd, e.g. 06 = mobile money
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    notes: text("notes"),
+    collectionId: uuid("collection_id"),
+    /* ---- fiscal fields returned by KRA (OSCU/VSCU) ---- */
+    cuInvoiceNo: varchar("cu_invoice_no", { length: 60 }), // "{sdcId}/{rcptNo}"
+    receiptNo: integer("receipt_no"),
+    totalReceiptNo: integer("total_receipt_no"),
+    internalData: varchar("internal_data", { length: 120 }),
+    receiptSignature: varchar("receipt_signature", { length: 120 }),
+    sdcId: varchar("sdc_id", { length: 40 }),
+    mrcNo: varchar("mrc_no", { length: 40 }),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    verificationUrl: text("verification_url"),
+    sandbox: boolean("sandbox").notNull().default(true),
+    submissionAttempts: integer("submission_attempts").notNull().default(0),
+    lastError: text("last_error"),
+    requestPayload: jsonb("request_payload"),
+    responsePayload: jsonb("response_payload"),
+    /** Public token for the customer-facing invoice view / pay page. */
+    publicToken: varchar("public_token", { length: 40 }),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("etims_documents_tenant_number_uidx").on(t.tenantId, t.number),
+    uniqueIndex("etims_documents_public_token_uidx").on(t.publicToken),
+    index("etims_documents_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("etims_documents_tenant_status_idx").on(t.tenantId, t.status),
+    index("etims_documents_collection_idx").on(t.collectionId),
   ],
 );

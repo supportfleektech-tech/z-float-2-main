@@ -3,6 +3,7 @@ import { getDb, schema, eq, or, isNull, desc } from "@zfloat/database";
 import { requireUser, apiOk, apiError } from "@/lib/api";
 import { loadUserPermissions, hashToken } from "@zfloat/auth";
 import { queueNotification } from "@zfloat/notifications";
+import { maskIdentifier } from "@zfloat/validation";
 import { roleGrantRequiresApproval, createInviteRoleApprovalRequest } from "@/lib/invite-controls";
 
 const INVITE_TTL_MS = 7 * 86400_000;
@@ -19,6 +20,10 @@ export async function GET() {
       email: schema.users.email,
       status: schema.users.status,
       mfaEnabled: schema.users.mfaEnabled,
+      phone: schema.users.phone,
+      idType: schema.users.idType,
+      idNumber: schema.users.idNumber,
+      kraPin: schema.users.kraPin,
       createdAt: schema.users.createdAt,
     })
     .from(schema.users)
@@ -30,7 +35,8 @@ export async function GET() {
     .select()
     .from(schema.roles)
     .where(or(eq(schema.roles.tenantId, user!.tenantId!), isNull(schema.roles.tenantId)));
-  return apiOk({ data: { users, roles } });
+  // ID numbers are masked in the list; the full value is only editable via PATCH /api/team/:id/identity.
+  return apiOk({ data: { users: users.map((u) => ({ ...u, idNumber: maskIdentifier(u.idNumber) || null })), roles } });
 }
 
 /** Invite a team member — invite-based registration keeps signups controlled. */

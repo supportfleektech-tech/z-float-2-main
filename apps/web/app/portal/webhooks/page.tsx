@@ -32,7 +32,7 @@ interface DeliveryDetail extends Delivery {
   updatedAt: string | null;
 }
 
-const ALL_EVENTS = ["payment.completed", "payment.failed", "payment.reversed", "batch.completed", "wallet.funded"];
+const ALL_EVENTS = ["payment.completed", "payment.failed", "payment.reversed", "batch.completed", "wallet.funded", "collection.received", "collection.failed", "invoice.fiscalised"];
 
 const pretty = (v: unknown): string => {
   try {

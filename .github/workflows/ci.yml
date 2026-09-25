@@ -48,17 +48,27 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The workspace has dependency cycles (e.g. database <-> payments-core),
+      # so pnpm cannot topologically order a clean build. A first no-bail pass
+      # emits the dist/ types that the second, strict pass needs. apps/web is
+      # built in its own step below, with production secrets.
+      - name: Build all packages
+        run: |
+          pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
+          pnpm -r --filter './packages/*' --filter './services/*' build
+
       - name: Typecheck all packages
         run: pnpm -r typecheck
 
-      - name: Build all packages
-        run: pnpm -r build
-
       - name: Migrate + seed test DB
+        # The service superuser is `zfloat` (there is no `postgres` role).
+        # Package tests connect to DATABASE_URL_TEST, so migrate + seed both DBs.
         run: |
-          createdb -h localhost -U postgres zfloat_test || true
+          createdb -h localhost -U zfloat zfloat_test
           pnpm --filter @zfloat/database db:migrate
           pnpm --filter @zfloat/database db:seed
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm --filter @zfloat/database db:migrate
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm --filter @zfloat/database db:seed
         env:
           PGPASSWORD: zfloat_dev_password
 
@@ -74,7 +84,7 @@ jobs:
         env:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
           DEMO_MODE: "false"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
@@ -112,15 +122,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm -r build
+        run: |
+          pnpm -r --no-bail --filter './packages/*' --filter './services/*' build || true
+          pnpm -r --filter './packages/*' --filter './services/*' build
 
       - name: Web build (production — required by next start)
         run: pnpm --filter @zfloat/web build
         env:
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
-          DEMO_MODE: "false"
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+          DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
 
@@ -135,6 +147,28 @@ jobs:
         working-directory: apps/web
         run: npx playwright install --with-deps chromium
 
+      # The suite exercises the demo walkthrough deployment class (production
+      # build + DEMO_MODE=true — see packages/config/src/env.ts): built-in demo
+      # approval policy and the invite-link bridge. Approved payments are
+      # executed by the worker, so it must be running.
+      - name: Start worker
+        run: |
+          nohup pnpm --filter @zfloat/worker start > /tmp/worker.log 2>&1 &
+          for i in $(seq 1 30); do grep -q "queue workers" /tmp/worker.log && break; sleep 1; done
+          cat /tmp/worker.log
+          grep -q "queue workers" /tmp/worker.log
+        # The worker runs in development mode so it can use the mock malware
+        # scanner (production refuses it, and CI has no clamd). The web app
+        # under test is still the production build.
+        env:
+          NODE_ENV: development
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+          DEMO_MODE: "true"
+          SEED_DEMO_DATA: "false"
+          MALWARE_SCANNER_DRIVER: mock
+          EMAIL_DRIVER: sink
+          OPS_ALERT_EMAILS: ops@example.com
+
       - name: E2E (production server — deterministic, demo login enabled via seed)
         working-directory: apps/web
         run: pnpm test:e2e
@@ -142,10 +176,14 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
           NODE_ENV: production
           SESSION_SECRET: ci-session-secret-0123456789abcdef-32bytes
-          ENCRYPTION_KEY: 1111111111111111111111111111111111111111111111111111111111111111
-          DEMO_MODE: "false"
+          ENCRYPTION_KEY: "1111111111111111111111111111111111111111111111111111111111111111"
+          DEMO_MODE: "true"
           SEED_DEMO_DATA: "false"
           MALWARE_SCANNER_DRIVER: clamav
+          EMAIL_DRIVER: sink
+          OPS_ALERT_EMAILS: ops@example.com
+          # Test-posture override: the suite signs in >20 times/min from one IP.
+          AUTH_LOGIN_RATE_MAX: "1000"
 
       - uses: actions/upload-artifact@v4
         if: failure()

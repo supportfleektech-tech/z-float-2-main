@@ -61,3 +61,16 @@ beyond a demo.
     semantics, per-currency provider routing, reporting) and would invalidate the "single
     unit of account" invariants the ledger + reconciliation rely on. The KES-only scope is a
     product decision, not an accident of implementation.
+
+## Collections, eTIMS & identity (2026 release)
+
+29. **eTIMS runs on the sandbox signer by default.** `ETIMS_DRIVER=sandbox` signs with a local HMAC (documents flagged `sandbox`, watermarked). The OSCU/VSCU HTTP client follows KRA's OSCU specification v2.0 (`selectInitOsdcInfo`, `saveTrnsSalesOsdc`) but has **not yet been certified against KRA's sandbox**. Run KRA's test scenarios before production (guide §6.1a).
+30. **Item classification codes are a placeholder.** Every line uses `itemClsCd 99000000` with quantity unit `U` and packaging unit `NT` unless the caller supplies them. Production needs item registration (`saveItem`) and real codes from `selectItemClsList`. There is no product catalogue or stock-movement reporting (`saveStockIO`) yet.
+31. **One eTIMS device per branch, head office by default.** The portal connects branch `00`. The data model supports more branches (`bhfId`), but the UI does not.
+32. **KRA verification URL pattern is configurable, not certified.** The QR encodes `…/indexEtimsReceiptData?Data={tin}{bhfId}{rcptSign}` (sandbox host `etims-sbx.kra.go.ke`, production `etims.kra.go.ke`). Confirm the format during certification.
+33. **STK timeouts are not correlated in real time.** If Daraja never calls back, the collection is marked `EXPIRED` after 10 minutes (worker cron). A later success callback still credits it. There is no active STK status query (`/stkpushquery`) yet.
+34. **C2B callbacks are authenticated by URL token, not signature** (Daraja does not sign them). Keep `MPESA_C2B_CALLBACK_TOKEN` secret and add Safaricom IP allowlisting at the load balancer. C2B confirmations whose account reference matches no business become zero-tenant reconciliation items. Allocating them to a tenant is manual.
+35. **Partial payments, refunds and write-offs.** Invoices track `PARTIAL`/`PAID`. Overpayments are credited to the wallet but not flagged as customer credit. Refunding a collection is done as a normal payout plus a credit note. There is no one-click refund.
+36. **Identity is validated for format, not verified.** ID numbers and KRA PINs are checked for shape and duplicates, not against IPRS or KRA PIN checker (the KYC package's vendor hooks are the place to add that). The KRA PIN checksum letter is not verified.
+37. **Pre-existing fixes shipped with this release:** the M-Pesa adapter registered `/api/v1/webhooks/mpesa` but the route is `/api/webhooks/mpesa`. The adapter is fixed, and a rewrite keeps old URLs working. `toJsonSafe` turned `Date` values into `{}` in JSON payloads (outbox, webhooks, API); they now serialise as ISO strings. The portal layout sent users to the login page when React's dev StrictMode aborted the session check.
+

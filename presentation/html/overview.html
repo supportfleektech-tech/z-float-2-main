@@ -1,0 +1,380 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Z-float — System overview</title>
+<style>
+body{margin:0;background:#1f2937;font-family:Calibri,Carlito,'Segoe UI',Inter,Arial,sans-serif}
+.slide{position:relative;width:1280px;height:720px;margin:24px auto;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.el{position:absolute;box-sizing:border-box}
+.t{display:flex;flex-direction:column;white-space:normal;line-height:1.18}
+.t p{margin:0}
+img.el{object-fit:cover;object-position:top}
+@media print{body{background:#fff}.slide{margin:0;box-shadow:none;page-break-after:always}}
+</style></head><body>
+<section class="slide" style="background:#0F2233">
+<div class="el" style="left:67.2px;top:76.8px;width:59.5px;height:59.5px;background:#1463FF;border-radius:8px"></div>
+<div class="el t" style="left:67.2px;top:76.8px;width:59.5px;height:59.5px;justify-content:center">
+<p style="font-size:34.7px;text-align:center;margin-bottom:0.0px"><span style="color:#FFFFFF;font-weight:700">Z</span></p>
+</div>
+<div class="el t" style="left:139.2px;top:82.6px;width:480.0px;height:52.8px;justify-content:center">
+<p style="font-size:32.0px;text-align:left;margin-bottom:8.0px"><span style="color:#FFFFFF;font-weight:700">Z-float</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:220.8px;width:787.2px;height:220.8px;justify-content:flex-start">
+<p style="font-size:58.7px;text-align:left;margin-bottom:0.0px"><span style="color:#FFFFFF;font-weight:700">Pay out. Get paid.<br>Stay KRA-compliant.</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:427.2px;width:729.6px;height:115.2px;justify-content:flex-start">
+<p style="font-size:24.0px;text-align:left;margin-bottom:8.0px"><span style="color:#C9D6EA;font-weight:400">Z-float is the business payments platform for Kenya — M-Pesa &amp; bank payouts, inbound collections and KRA eTIMS invoicing on one double-entry ledger.</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:628.8px;width:768.0px;height:38.4px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#8FA3BF;font-weight:400">System overview · 2026 release: collections, eTIMS e-invoicing &amp; identity</span></p>
+</div>
+<img class="el" src="../assets/receipt.png" style="left:820.8px;top:144.0px;width:403.2px;height:373.7px;">
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">THE PROBLEM</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Kenyan businesses run money on scattered tools</span></p>
+</div>
+<div class="el" style="left:67.2px;top:182.4px;width:364.8px;height:374.4px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:67.2px;top:182.4px;width:7.7px;height:374.4px;background:#1463FF;border-radius:0"></div>
+<div class="el t" style="left:96.0px;top:201.6px;width:316.8px;height:345.6px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Money in, money out — separately</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Payouts on one portal, M-Pesa paybill statements in another</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Manual matching of who paid which invoice</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">No single balance the team trusts</span></p>
+</div>
+<div class="el" style="left:457.9px;top:182.4px;width:364.8px;height:374.4px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:457.9px;top:182.4px;width:7.7px;height:374.4px;background:#B7791F;border-radius:0"></div>
+<div class="el t" style="left:486.7px;top:201.6px;width:316.8px;height:345.6px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Tax compliance went digital</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Every sale needs an eTIMS invoice or receipt</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Expenses without an eTIMS invoice are no longer deductible (Finance Act 2025)</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Penalty: double the tax due or KES 2M</span></p>
+</div>
+<div class="el" style="left:848.6px;top:182.4px;width:364.8px;height:374.4px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:848.6px;top:182.4px;width:7.7px;height:374.4px;background:#C53030;border-radius:0"></div>
+<div class="el t" style="left:877.4px;top:201.6px;width:316.8px;height:345.6px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">A phone number is not an identity</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Numbers are shared, recycled, and mistyped</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Two “John Otieno”s in the payee book</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Buyers need their KRA PIN on invoices to claim VAT</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:590.4px;width:1142.4px;height:48.0px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Sources: Tax Procedures Act as amended by Finance Act 2025 (s.23A, eTIMS); KRA income &amp; expense validation notice.</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">2 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#F7F9FC">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">THE PLATFORM</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">One account for every shilling that moves</span></p>
+</div>
+<div class="el" style="left:67.2px;top:182.4px;width:273.6px;height:316.8px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:67.2px;top:182.4px;width:7.7px;height:316.8px;background:#1463FF;border-radius:0"></div>
+<div class="el t" style="left:96.0px;top:201.6px;width:225.6px;height:288.0px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Pay out</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">M-Pesa B2C, paybill, till &amp; bank</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Bulk CSV, payroll, suppliers, bills, airtime</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Schedules &amp; payment links</span></p>
+</div>
+<div class="el" style="left:360.0px;top:182.4px;width:273.6px;height:316.8px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:360.0px;top:182.4px;width:7.7px;height:316.8px;background:#0E9F6E;border-radius:0"></div>
+<div class="el t" style="left:388.8px;top:201.6px;width:225.6px;height:288.0px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Get paid  · NEW</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">M-Pesa STK request-to-pay</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Paybill/Till C2B with invoice routing</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Payment links &amp; bank transfers</span></p>
+</div>
+<div class="el" style="left:652.8px;top:182.4px;width:273.6px;height:316.8px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:652.8px;top:182.4px;width:7.7px;height:316.8px;background:#B7791F;border-radius:0"></div>
+<div class="el t" style="left:681.6px;top:201.6px;width:225.6px;height:288.0px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Comply  · NEW</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">KRA eTIMS invoices, receipts, credit notes</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">OSCU / VSCU device integration</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">ID number + KRA PIN on every party</span></p>
+</div>
+<div class="el" style="left:945.6px;top:182.4px;width:273.6px;height:316.8px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:945.6px;top:182.4px;width:7.7px;height:316.8px;background:#0F2233;border-radius:0"></div>
+<div class="el t" style="left:974.4px;top:201.6px;width:225.6px;height:288.0px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Control</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Maker-checker approvals &amp; limits</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Double-entry ledger, reconciliation</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Audit trail, webhooks, public API</span></p>
+</div>
+<div class="el" style="left:67.2px;top:528.0px;width:249.6px;height:105.6px;background:#FFFFFF;border-radius:8px"></div>
+<div class="el t" style="left:81.6px;top:539.5px;width:220.8px;height:86.4px;justify-content:center">
+<p style="font-size:18.7px;text-align:center;margin-bottom:5.3px"><span style="color:#0F172A;font-weight:700">Customer pays</span></p>
+<p style="font-size:14.7px;text-align:center;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">STK · C2B · link · bank</span></p>
+</div>
+<div class="el t" style="left:316.8px;top:556.8px;width:48.0px;height:48.0px;justify-content:center">
+<p style="font-size:26.7px;text-align:center;margin-bottom:0.0px"><span style="color:#1463FF;font-weight:700">→</span></p>
+</div>
+<div class="el" style="left:364.8px;top:528.0px;width:249.6px;height:105.6px;background:#FFFFFF;border-radius:8px"></div>
+<div class="el t" style="left:379.2px;top:539.5px;width:220.8px;height:86.4px;justify-content:center">
+<p style="font-size:18.7px;text-align:center;margin-bottom:5.3px"><span style="color:#0F172A;font-weight:700">Wallet credited</span></p>
+<p style="font-size:14.7px;text-align:center;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">balanced journal</span></p>
+</div>
+<div class="el t" style="left:614.4px;top:556.8px;width:48.0px;height:48.0px;justify-content:center">
+<p style="font-size:26.7px;text-align:center;margin-bottom:0.0px"><span style="color:#1463FF;font-weight:700">→</span></p>
+</div>
+<div class="el" style="left:662.4px;top:528.0px;width:249.6px;height:105.6px;background:#FFFFFF;border-radius:8px"></div>
+<div class="el t" style="left:676.8px;top:539.5px;width:220.8px;height:86.4px;justify-content:center">
+<p style="font-size:18.7px;text-align:center;margin-bottom:5.3px"><span style="color:#0F172A;font-weight:700">Invoice settled</span></p>
+<p style="font-size:14.7px;text-align:center;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">PAID / PARTIAL</span></p>
+</div>
+<div class="el t" style="left:912.0px;top:556.8px;width:48.0px;height:48.0px;justify-content:center">
+<p style="font-size:26.7px;text-align:center;margin-bottom:0.0px"><span style="color:#1463FF;font-weight:700">→</span></p>
+</div>
+<div class="el" style="left:960.0px;top:528.0px;width:249.6px;height:105.6px;background:#FFFFFF;border-radius:8px"></div>
+<div class="el t" style="left:974.4px;top:539.5px;width:220.8px;height:86.4px;justify-content:center">
+<p style="font-size:18.7px;text-align:center;margin-bottom:5.3px"><span style="color:#0F172A;font-weight:700">eTIMS receipt</span></p>
+<p style="font-size:14.7px;text-align:center;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">KRA-signed, QR</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">3 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">PAYING OUT</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Disburse to anyone on M-Pesa or bank — safely</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:177.6px;width:499.2px;height:460.8px;justify-content:flex-start">
+<p style="font-size:20.0px;text-align:left;margin-bottom:16.0px"><span style="color:#0F172A;font-weight:400">Single, bulk and scheduled payments to phones, tills, paybills and bank accounts.</span></p>
+<p style="font-size:18.7px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Approval policies by amount, role and payee risk (maker-checker)</span></p>
+<p style="font-size:18.7px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">New payees need an independent approver before they receive funds</span></p>
+<p style="font-size:18.7px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Funds reserved on the ledger before the provider is called</span></p>
+<p style="font-size:18.7px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Idempotent APIs, provider circuit breakers, stuck-payment monitor</span></p>
+<p style="font-size:18.7px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Payroll, supplier bills, airtime and expense claims built in</span></p>
+</div>
+<img class="el" src="../assets/dashboard.png" style="left:595.2px;top:172.8px;width:619.2px;height:430.0px;border:1px solid #D9E1EC;">
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">4 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">RECEIVING PAYMENTS · NEW</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Collect by M-Pesa prompt, paybill, link or bank</span></p>
+</div>
+<img class="el" src="../assets/collections.png" style="left:67.2px;top:172.8px;width:633.6px;height:440.0px;border:1px solid #D9E1EC;">
+<div class="el t" style="left:734.4px;top:172.8px;width:480.0px;height:470.4px;justify-content:flex-start">
+<p style="font-size:20.0px;text-align:left;margin-bottom:2.7px"><span style="color:#0F172A;font-weight:700">M-Pesa STK push</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:13.3px"><span style="color:#5B6B83;font-weight:400">PIN prompt on the payer’s phone; callback settles it.</span></p>
+<p style="font-size:20.0px;text-align:left;margin-bottom:2.7px"><span style="color:#0F172A;font-weight:700">Paybill / Till (C2B)</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:13.3px"><span style="color:#5B6B83;font-weight:400">Account ACME-INV-000123 routes to the business and the invoice. Unknown accounts rejected at validation or parked for recon.</span></p>
+<p style="font-size:20.0px;text-align:left;margin-bottom:2.7px"><span style="color:#0F172A;font-weight:700">Payment links &amp; bank transfers</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:13.3px"><span style="color:#5B6B83;font-weight:400">Links cap uses atomically; bank references can only be recorded once.</span></p>
+<p style="font-size:20.0px;text-align:left;margin-bottom:2.7px"><span style="color:#0F172A;font-weight:700">Safe by construction</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Idempotent on CheckoutRequestID / TransID; late callbacks after expiry still credit; row locks prevent double credit.</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">5 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">KRA ETIMS · NEW</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Electronic tax invoices &amp; receipts, signed by KRA</span></p>
+</div>
+<img class="el" src="../assets/receipt.png" style="left:67.2px;top:172.8px;width:451.2px;height:418.2px;border:1px solid #D9E1EC;">
+<div class="el t" style="left:547.2px;top:172.8px;width:672.0px;height:480.0px;justify-content:flex-start">
+<p style="font-size:21.3px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">What the business gets</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Tax invoices, receipts and credit notes with VAT A–E computed per line</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Automatic eTIMS receipt for every payment received</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Buyer KRA PIN printed so customers can claim input VAT</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:18.7px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Shareable link + QR that verifies on the KRA portal</span></p>
+<p style="font-size:21.3px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">How it works</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">OSCU API: selectInitOsdcInfo → cmcKey (encrypted at rest) → saveTrnsSalesOsdc</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Sequential invoice numbers per device under a row lock</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">KRA outage? Documents queue and retry; rejections surface for a human</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Signed documents are immutable in the database — corrections are credit notes</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">6 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">IDENTITY · NEW</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">ID number + KRA PIN — not just a phone number</span></p>
+</div>
+<img class="el" src="../assets/recipients.png" style="left:67.2px;top:172.8px;width:633.6px;height:440.0px;border:1px solid #D9E1EC;">
+<div class="el t" style="left:734.4px;top:172.8px;width:480.0px;height:470.4px;justify-content:flex-start">
+<p style="font-size:20.0px;text-align:left;margin-bottom:13.3px"><span style="color:#0F172A;font-weight:700">Captured on recipients, customers, payers and team members</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">National ID, Alien ID, Passport, Military ID, Company registration</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">KRA PIN validated (A/P + 9 digits + letter) and classified individual vs business</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Duplicate guard: the same PIN or ID can’t be added twice by accident</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">One search box: phone, ID number or KRA PIN</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">ID numbers masked in lists; changes are audited</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Payer PIN flows straight onto their eTIMS receipt</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">7 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#F7F9FC">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">CONTROLS &amp; TRUST</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Built like a bank ledger, not a spreadsheet</span></p>
+</div>
+<div class="el" style="left:67.2px;top:182.4px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:67.2px;top:182.4px;width:7.7px;height:201.6px;background:#1463FF;border-radius:0"></div>
+<div class="el t" style="left:96.0px;top:201.6px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Double-entry ledger</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Every credit and debit is a balanced journal; a health check proves it every 10 minutes.</span></p>
+</div>
+<div class="el" style="left:456.0px;top:182.4px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:456.0px;top:182.4px;width:7.7px;height:201.6px;background:#0E9F6E;border-radius:0"></div>
+<div class="el t" style="left:484.8px;top:201.6px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Maker-checker</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Payments, reversals, new payees and privileged roles need an independent approver.</span></p>
+</div>
+<div class="el" style="left:844.8px;top:182.4px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:844.8px;top:182.4px;width:7.7px;height:201.6px;background:#B7791F;border-radius:0"></div>
+<div class="el t" style="left:873.6px;top:201.6px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Idempotency everywhere</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">API keys, provider callbacks (CheckoutRequestID, TransID) and bank refs dedupe.</span></p>
+</div>
+<div class="el" style="left:67.2px;top:408.0px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:67.2px;top:408.0px;width:7.7px;height:201.6px;background:#0F2233;border-radius:0"></div>
+<div class="el t" style="left:96.0px;top:427.2px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Transactional outbox</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Receipts, notifications and webhooks are published exactly once, after commit.</span></p>
+</div>
+<div class="el" style="left:456.0px;top:408.0px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:456.0px;top:408.0px;width:7.7px;height:201.6px;background:#C53030;border-radius:0"></div>
+<div class="el t" style="left:484.8px;top:427.2px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Immutable fiscal records</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">A database trigger blocks edits/deletes of KRA-signed documents.</span></p>
+</div>
+<div class="el" style="left:844.8px;top:408.0px;width:369.6px;height:201.6px;background:#FFFFFF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:844.8px;top:408.0px;width:7.7px;height:201.6px;background:#1463FF;border-radius:0"></div>
+<div class="el t" style="left:873.6px;top:427.2px;width:321.6px;height:172.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#0F172A;font-weight:700">Secrets &amp; audit</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#5B6B83;font-weight:400">Device keys AES-GCM encrypted; callbacks token-checked; every change audited.</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">8 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#FFFFFF">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#1463FF;font-weight:700">ARCHITECTURE</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#0F172A;font-weight:700">Typed monorepo, adapters at the edges</span></p>
+</div>
+<div class="el" style="left:67.2px;top:177.6px;width:1142.4px;height:81.6px;background:#EAF1FF;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el t" style="left:91.2px;top:177.6px;width:249.6px;height:81.6px;justify-content:center">
+<p style="font-size:20.0px;text-align:left;margin-bottom:0.0px"><span style="color:#0F172A;font-weight:700">Channels</span></p>
+</div>
+<div class="el t" style="left:345.6px;top:177.6px;width:844.8px;height:81.6px;justify-content:center">
+<p style="font-size:17.3px;text-align:left;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">Portal (Next.js 14) · Public API · Hosted pay &amp; receipt pages · Provider webhooks</span></p>
+</div>
+<div class="el" style="left:67.2px;top:271.7px;width:1142.4px;height:81.6px;background:#E8F7F0;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el t" style="left:91.2px;top:271.7px;width:249.6px;height:81.6px;justify-content:center">
+<p style="font-size:20.0px;text-align:left;margin-bottom:0.0px"><span style="color:#0F172A;font-weight:700">Domain packages</span></p>
+</div>
+<div class="el t" style="left:345.6px;top:271.7px;width:844.8px;height:81.6px;justify-content:center">
+<p style="font-size:17.3px;text-align:left;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">payments-core · collections · etims · ledger · approvals · validation · auth/RBAC · audit</span></p>
+</div>
+<div class="el" style="left:67.2px;top:365.8px;width:1142.4px;height:81.6px;background:#FFF6E5;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el t" style="left:91.2px;top:365.8px;width:249.6px;height:81.6px;justify-content:center">
+<p style="font-size:20.0px;text-align:left;margin-bottom:0.0px"><span style="color:#0F172A;font-weight:700">Async</span></p>
+</div>
+<div class="el t" style="left:345.6px;top:365.8px;width:844.8px;height:81.6px;justify-content:center">
+<p style="font-size:17.3px;text-align:left;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">Worker (BullMQ/Redis): executions, callbacks, reconciliation, eTIMS retries, STK expiry · Outbox relay</span></p>
+</div>
+<div class="el" style="left:67.2px;top:459.8px;width:1142.4px;height:81.6px;background:#F3F4F8;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el t" style="left:91.2px;top:459.8px;width:249.6px;height:81.6px;justify-content:center">
+<p style="font-size:20.0px;text-align:left;margin-bottom:0.0px"><span style="color:#0F172A;font-weight:700">Adapters</span></p>
+</div>
+<div class="el t" style="left:345.6px;top:459.8px;width:844.8px;height:81.6px;justify-content:center">
+<p style="font-size:17.3px;text-align:left;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">M-Pesa Daraja (B2C, STK, C2B) · Bank PSP · Airtime · KRA eTIMS OSCU / VSCU / sandbox signer</span></p>
+</div>
+<div class="el" style="left:67.2px;top:553.9px;width:1142.4px;height:81.6px;background:#EEF2F7;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el t" style="left:91.2px;top:553.9px;width:249.6px;height:81.6px;justify-content:center">
+<p style="font-size:20.0px;text-align:left;margin-bottom:0.0px"><span style="color:#0F172A;font-weight:700">Data</span></p>
+</div>
+<div class="el t" style="left:345.6px;top:553.9px;width:844.8px;height:81.6px;justify-content:center">
+<p style="font-size:17.3px;text-align:left;margin-bottom:0.0px"><span style="color:#5B6B83;font-weight:400">PostgreSQL (Drizzle, SQL migrations, triggers) · Redis · Object storage</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#5B6B83;font-weight:400">9 / 10</span></p>
+</div>
+</section>
+<section class="slide" style="background:#0F2233">
+<div class="el t" style="left:67.2px;top:43.2px;width:1142.4px;height:33.6px;justify-content:flex-start">
+<p style="font-size:16.0px;text-align:left;margin-bottom:8.0px"><span style="color:#8FB3FF;font-weight:700">GO-LIVE &amp; ROADMAP</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:74.9px;width:1142.4px;height:86.4px;justify-content:flex-start">
+<p style="font-size:40.0px;text-align:left;margin-bottom:8.0px"><span style="color:#FFFFFF;font-weight:700">From sandbox to production</span></p>
+</div>
+<div class="el" style="left:67.2px;top:182.4px;width:556.8px;height:441.6px;background:#16304A;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:67.2px;top:182.4px;width:7.7px;height:441.6px;background:#0E9F6E;border-radius:0"></div>
+<div class="el t" style="left:96.0px;top:201.6px;width:508.8px;height:412.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#FFFFFF;font-weight:700">Go-live checklist</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">KRA: apply for OSCU (or VSCU) on the eTIMS portal / GavaConnect; receive device serial</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Set ETIMS_DRIVER=oscu, ETIMS_ENVIRONMENT=production</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Map items to KRA item classification codes (placeholder today)</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Safaricom Daraja production app: STK passkey, C2B URL registration</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Set MPESA_C2B_CALLBACK_TOKEN; enable external validation</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Run the certification test cases in the KRA sandbox first</span></p>
+</div>
+<div class="el" style="left:656.6px;top:182.4px;width:556.8px;height:441.6px;background:#16304A;border:1px solid #D9E1EC;border-radius:8px"></div>
+<div class="el" style="left:656.6px;top:182.4px;width:7.7px;height:441.6px;background:#1463FF;border-radius:0"></div>
+<div class="el t" style="left:685.4px;top:201.6px;width:508.8px;height:412.8px;justify-content:flex-start">
+<p style="font-size:22.7px;text-align:left;margin-bottom:10.7px"><span style="color:#FFFFFF;font-weight:700">Roadmap</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Item catalogue synced with KRA (saveItem, stock movements)</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Purchase invoices: pull supplier eTIMS invoices to validate expenses</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Recurring invoices &amp; automatic payment reminders by SMS</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Customer statements and aged-receivables report</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Card and Airtel Money collections</span></p>
+<p style="font-size:17.3px;text-align:left;margin-bottom:5.3px"><span style="color:#1463FF">•&nbsp;&nbsp;</span><span style="color:#C9D6EA;font-weight:400">Multi-branch eTIMS devices (bhfId per branch)</span></p>
+</div>
+<div class="el t" style="left:67.2px;top:672.0px;width:576.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:left;margin-bottom:8.0px"><span style="color:#8FA3BF;font-weight:400">Z-float · Business payments for Kenya</span></p>
+</div>
+<div class="el t" style="left:1017.6px;top:672.0px;width:192.0px;height:28.8px;justify-content:flex-start">
+<p style="font-size:13.3px;text-align:right;margin-bottom:8.0px"><span style="color:#8FA3BF;font-weight:400">10 / 10</span></p>
+</div>
+</section>
+</body></html>
