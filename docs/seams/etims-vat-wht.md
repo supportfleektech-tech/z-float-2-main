@@ -1,5 +1,12 @@
 # Requirements — eTIMS / VAT invoicing + withholding tax (Phase 10) — adapter seam only
 
+> **Status update (2026-09):** the **eTIMS invoicing** half is now implemented:
+> `@zfloat/etims` (OSCU/VSCU client, sandbox signer, tax types A–E, invoices,
+> receipts and credit notes, QR and public document page). See
+> [`docs/COLLECTIONS_AND_ETIMS.md`](../COLLECTIONS_AND_ETIMS.md). Going live
+> needs a KRA-registered device per tenant (GavaConnect). **Withholding tax
+> remains design-only**, as below: it still needs an authoritative, dated rates source.
+
 Kenya eTIMS (KRA) integration requires an OAuth/API credential + registered
 taxpayer profile per tenant; WHT rates/posting rules change with Finance Acts.
 No implementation is attempted; this is the requirements + seam doc.

@@ -15,6 +15,14 @@ every item; a failed item blocks the release. Runbook references: `runbooks.md`.
 - [ ] Provider routes point at production adapters with real credentials
       (sandbox provider disabled / `enabled=false`).
 - [ ] `MALWARE_SCANNER_DRIVER=clamav` and `CLAMAV_HOST/PORT` reachable.
+- [ ] **KRA eTIMS:** each tenant's OSCU/VSCU device registered via GavaConnect and
+      initialised in *Settings → eTIMS*; `ETIMS_DRIVER=oscu` (or `vscu` with
+      `ETIMS_API_BASE_URL`) and `ETIMS_ENVIRONMENT=production`. The config guard
+      refuses `production` with the `sandbox` signer.
+- [ ] **Receiving payments (C2B):** Paybill/Till validation + confirmation URLs
+      registered with Safaricom (Daraja `registerURL`), `MPESA_TILL_NUMBER` set
+      if a Till is used, and `MPESA_C2B_CALLBACK_TOKEN` set (C2B callbacks are
+      unsigned; the token is appended to the registered URLs).
 
 ## 2. Database & Migrations
 

@@ -301,6 +301,8 @@ at fanout).
       provider windows). NOT blindly implemented.
 - [x] Partial refunds & fee handling: design doc (ledger semantics). NOT blindly implemented.
 - [x] eTIMS/VAT invoicing + WHT: requirements doc; adapter seam only.
+      *Update 2026-09: eTIMS invoicing implemented (`@zfloat/etims`, see
+      `docs/COLLECTIONS_AND_ETIMS.md`); WHT still design-only.*
 - [x] Payroll statutory (PAYE/NSSF/SHIF) — needs authoritative rates source; doc only.
 - [x] Multi-currency: explicitly deferred (architectural; KES-only is a documented launch
       decision unless reversed).

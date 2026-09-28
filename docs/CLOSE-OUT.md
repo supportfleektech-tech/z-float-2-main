@@ -97,9 +97,23 @@ cd apps/web && source /tmp/zf-build-env.sh && npx playwright test --retries=0
 
 ---
 
+## Addendum — Receive, KRA eTIMS & identity (2026-09, PR #1)
+
+- **Receive money:** M-Pesa STK push, Paybill/Till C2B, payment links and bank
+  transfers, all posted through the double-entry ledger. Paid invoices get an
+  automatic receipt.
+- **KRA eTIMS:** `@zfloat/etims` issues invoices, receipts and credit notes (tax
+  types A–E), with QR codes and a public document page. A sandbox signer is used
+  until a KRA device is registered.
+- **Identity:** ID number + KRA PIN on recipients, customers and team members.
+- **Evidence:** CI green (`test` + `e2e`, 34/34 Playwright), 11 eTIMS tax tests, 6
+  collections integration tests, 6 clamd protocol tests. Guide:
+  `docs/COLLECTIONS_AND_ETIMS.md`; decks: `presentation/`.
+
 ## Honest limitations (unchanged, stated not hidden)
 
-- **No live integrations.** Provider/PSP, Daraja recon pull, ClamAV, and email/SMS are
+- **No live integrations.** Provider/PSP, Daraja recon pull, KRA eTIMS (sandbox signer
+  until a device is registered), ClamAV, and email/SMS are
   local/mock boundaries by design; the Phase-10 seam docs (`docs/seams/`) specify what a real
   deployment must replace. Nothing pretends otherwise.
 - **Demo-mode posture** is a deliberate deployment class for this walkthrough; production
