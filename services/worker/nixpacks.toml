@@ -8,8 +8,12 @@ cmds = [
 ]
 
 [phases.build]
+# Workspace packages must be built first (two passes: the workspace has
+# dependency cycles, e.g. database <-> payments-core). Mirrors railway.json.
 cmds = [
-  "pnpm --filter @zfloat/worker build",
+  "cd ../.. && (pnpm -r --no-bail --filter './packages/*' build || true)",
+  "cd ../.. && pnpm -r --filter './packages/*' build",
+  "cd ../.. && pnpm --filter @zfloat/worker build",
 ]
 
 [phases.deploy]

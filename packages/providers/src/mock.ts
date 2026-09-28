@@ -20,11 +20,14 @@ import {
   ProviderStatusResult,
   ProviderWebhookRequest,
   VerifiedWebhook,
+  CollectionProvider,
+  CollectionRequestInput,
+  CollectionRequestResult,
 } from "./types.js";
 
 export type MockBehaviour = "success" | "pending" | "random" | "fail";
 
-export class MockProvider implements PaymentProvider {
+export class MockProvider implements PaymentProvider, CollectionProvider {
   readonly code = "local-sandbox";
   readonly providerType = "sandbox" as const;
 
@@ -58,6 +61,26 @@ export class MockProvider implements PaymentProvider {
       async: status === "PENDING",
       raw: { behaviour: this.behaviour, sandbox: true },
       ...(status === "FAILED" ? { errorCode: "MOCK_ERR_001", errorMessage: "Mock provider rejected the payment (fail behaviour)." } : {}),
+    };
+  }
+
+  /**
+   * Sandbox STK push. Like the real rail, the outcome is always asynchronous:
+   * the collection stays PENDING until a (simulated) callback arrives — the
+   * portal exposes "Simulate customer approval" in sandbox mode.
+   * `fail` behaviour rejects the request up-front.
+   */
+  async requestCollection(input: CollectionRequestInput): Promise<CollectionRequestResult> {
+    await this.latency();
+    if (this.behaviour === "fail") {
+      return { status: "FAILED", async: false, errorCode: "MOCK_STK_REJECTED", errorMessage: "Mock provider rejected the STK push (fail behaviour)." };
+    }
+    return {
+      status: "PENDING",
+      async: true,
+      providerReference: `ws_CO_MOCK_${input.collectionId.replace(/-/g, "").slice(0, 20)}`,
+      customerMessage: "Success. Request accepted for processing (sandbox)",
+      raw: { sandbox: true, behaviour: this.behaviour },
     };
   }
 

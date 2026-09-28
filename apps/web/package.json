@@ -44,7 +44,8 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/qrcode": "^1.5.6",
-    "eslint": "^8.57.1"
+    "eslint": "^8.57.1",
+    "@zfloat/etims": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.47.0",

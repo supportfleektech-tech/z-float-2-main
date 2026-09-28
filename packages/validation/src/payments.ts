@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ID_DOCUMENT_TYPES } from "./identity.js";
 import { amountDecimalSchema, currencySchema, idempotencyKeySchema, phoneInputSchema, remarkSchema } from "./common.js";
 
 export const paymentChannels = ["mpesa", "till", "paybill", "bank"] as const;
@@ -17,6 +18,10 @@ export const recipientInputSchema = z.object({
   paybillAccount: z.string().trim().min(1).max(40).optional(),
   email: z.string().email().optional().or(z.literal("")),
   type: z.enum(["person", "supplier", "employee", "biller"]).default("person"),
+  /** Identity — optional, but lets payees be identified beyond a phone number. */
+  idType: z.enum(ID_DOCUMENT_TYPES).optional(),
+  idNumber: z.string().trim().max(30).optional(),
+  kraPin: z.string().trim().max(15).optional(),
   notes: z.string().trim().max(500).optional(),
 });
 

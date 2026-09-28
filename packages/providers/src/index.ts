@@ -7,7 +7,7 @@ import type { PaymentProvider } from "./types.js";
 
 export * from "./types.js";
 export { MockProvider, MockBehaviour } from "./mock.js";
-export { MpesaProviderAdapter } from "./mpesa.js";
+export { MpesaProviderAdapter, parseC2BConfirmation, parseStkCallbackMetadata, toDarajaMsisdn, darajaTimestamp } from "./mpesa.js";
 export { BankProviderAdapter } from "./bank.js";
 export { AirtimeProviderAdapter } from "./airtime.js";
 export * from "./circuit-breaker.js";

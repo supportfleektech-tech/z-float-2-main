@@ -1,14 +1,16 @@
 /**
  * Payment links — public "request money" pages backed by the sandbox rail.
- * When a payer completes the flow, the tenant's wallet is funded via a
- * double-entry funding journal (float liability) and the tenant gets an
- * in-app notification. Token-scoped, expiry/usage-limited, tenant-isolated.
+ * When a payer completes the flow a PAYMENT_LINK collection is settled: the
+ * tenant's wallet is funded via a double-entry funding journal (float
+ * liability), an eTIMS receipt is issued and the tenant is notified.
+ * Token-scoped, expiry/usage-limited, tenant-isolated.
  */
 import { randomBytes } from "node:crypto";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { schema, type Db } from "@zfloat/database";
-import { postFundingJournal, getWalletBalance, recordWalletFunding } from "@zfloat/ledger";
-import { queueNotification } from "@zfloat/notifications";
+import { getWalletBalance } from "@zfloat/ledger";
+import { normalizeKenyanPhone } from "@zfloat/validation";
+import { generateCollectionNumber, settleCollection } from "./collections.js";
 
 export interface PaymentLinkInput {
   tenantId: string;
@@ -113,14 +115,17 @@ export async function getPaymentLinkView(db: Db, token: string): Promise<Payment
 }
 
 /**
- * Complete a payment via a link: validates state, funds the tenant's main
- * wallet with a double-entry journal, increments usage, notifies the tenant.
- * Idempotent per (token, payerRef) via the caller-supplied idempotency record.
+ * Complete a payment via a link. Every link payment is a first-class
+ * collection (channel PAYMENT_LINK): the use is claimed atomically (maxUses
+ * can never be exceeded by concurrent payers), then `settleCollection`
+ * credits the wallet + wallet-ledger + balanced funding journal in one tx and
+ * emits `collection.received` (→ eTIMS receipt, notification, webhooks).
+ * Idempotent per (token, payerRef) via the collection idempotency key.
  */
 export async function collectViaPaymentLink(
   db: Db,
-  input: { token: string; payerRef: string; payerName?: string },
-): Promise<{ fundedMinor: bigint; walletBalanceMinor: string; paymentLinkId: string }> {
+  input: { token: string; payerRef: string; payerName?: string; payerPhone?: string },
+): Promise<{ fundedMinor: bigint; walletBalanceMinor: string; paymentLinkId: string; collectionId: string; collectionNumber: string }> {
   const [link] = await db
     .select()
     .from(schema.paymentLinks)
@@ -129,7 +134,23 @@ export async function collectViaPaymentLink(
   if (!link) throw new Error("Payment link not found");
   if (link.status !== "ACTIVE") throw new Error("This payment link is not active");
   if (link.expiresAt && link.expiresAt < new Date()) throw new Error("This payment link has expired");
-  if (link.maxUses !== null && link.useCount >= link.maxUses) throw new Error("This payment link has reached its usage limit");
+
+  const idempotencyKey = `paylink:${input.token}:${input.payerRef}`.slice(0, 128);
+  const [prior] = await db
+    .select()
+    .from(schema.collections)
+    .where(and(eq(schema.collections.tenantId, link.tenantId), eq(schema.collections.idempotencyKey, idempotencyKey)))
+    .limit(1);
+  if (prior) {
+    const bal = await getWalletBalance(db, prior.walletId, link.tenantId);
+    return {
+      fundedMinor: prior.amountMinor,
+      walletBalanceMinor: bal.availableMinor.toString(),
+      paymentLinkId: link.id,
+      collectionId: prior.id,
+      collectionNumber: prior.collectionNumber,
+    };
+  }
 
   const [wallet] = await db
     .select()
@@ -139,46 +160,48 @@ export async function collectViaPaymentLink(
     .limit(1);
   if (!wallet) throw new Error("Merchant wallet is not configured");
 
-  // Credit the merchant wallet: journal + atomic increment + reservation-ledger
-  // FUND entry in one transaction so the ledger's balance-after is exact.
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.wallets)
-      .set({ availableMinor: sql`${schema.wallets.availableMinor} + ${link.amountMinor}` })
-      .where(eq(schema.wallets.id, wallet.id));
-    await recordWalletFunding(tx, {
-      tenantId: link.tenantId,
-      walletId: wallet.id,
-      refType: "payment_link",
-      refId: link.id,
-      amountMinor: link.amountMinor,
-      note: `payment link ${link.token}`,
-    });
-  });
-
-  await postFundingJournal(db, {
-    tenantId: link.tenantId,
-    walletId: wallet.id,
-    amountMinor: link.amountMinor,
-    actorId: link.createdById ?? undefined,
-  });
-
-  await db
+  // Atomic use claim — the WHERE clause is the concurrency guard.
+  const claimed = await db
     .update(schema.paymentLinks)
-    .set({ useCount: link.useCount + 1, updatedAt: new Date() })
-    .where(eq(schema.paymentLinks.id, link.id));
+    .set({ useCount: sql`${schema.paymentLinks.useCount} + 1`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.paymentLinks.id, link.id),
+        or(isNull(schema.paymentLinks.maxUses), sql`${schema.paymentLinks.useCount} < ${schema.paymentLinks.maxUses}`),
+      ),
+    )
+    .returning({ id: schema.paymentLinks.id });
+  if (claimed.length === 0) throw new Error("This payment link has reached its usage limit");
+
+  const [collection] = await db
+    .insert(schema.collections)
+    .values({
+      tenantId: link.tenantId,
+      collectionNumber: generateCollectionNumber(),
+      walletId: wallet.id,
+      channel: "PAYMENT_LINK",
+      status: "PENDING",
+      amountMinor: link.amountMinor,
+      accountReference: link.token.slice(0, 60),
+      description: link.name,
+      payerName: input.payerName ?? null,
+      payerPhone: input.payerPhone ? normalizeKenyanPhone(input.payerPhone) : null,
+      paymentLinkId: link.id,
+      providerCode: "local-sandbox",
+      providerReference: `LNK-${input.token.slice(0, 8).toUpperCase()}-${input.payerRef.slice(0, 6).toUpperCase()}`,
+      idempotencyKey,
+      requestedById: link.createdById,
+    })
+    .returning();
+
+  await settleCollection(db, { collectionId: collection!.id, refType: "payment_link", actorId: link.createdById });
 
   const balance = await getWalletBalance(db, wallet.id, link.tenantId);
-  await queueNotification(db, {
-    tenantId: link.tenantId,
-    channel: "IN_APP",
-    title: "Payment received",
-    body: `${link.name} — KES ${(Number(link.amountMinor) / 100).toLocaleString()} received${input.payerName ? ` from ${input.payerName}` : ""} via payment link.`,
-  });
-
   return {
     fundedMinor: link.amountMinor,
     walletBalanceMinor: balance.availableMinor.toString(),
     paymentLinkId: link.id,
+    collectionId: collection!.id,
+    collectionNumber: collection!.collectionNumber,
   };
 }

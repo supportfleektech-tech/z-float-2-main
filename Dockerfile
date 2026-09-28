@@ -36,6 +36,8 @@ RUN pnpm --filter @zfloat/notifications build
 RUN pnpm --filter @zfloat/audit build
 RUN pnpm --filter @zfloat/approvals build
 # Build payments-core last (depends on approvals, database, etc)
+# etims (KRA e-invoicing) is imported by payments-core
+RUN pnpm --filter @zfloat/etims build
 RUN pnpm --filter @zfloat/payments-core build
 # Build services
 RUN pnpm --filter @zfloat/worker build

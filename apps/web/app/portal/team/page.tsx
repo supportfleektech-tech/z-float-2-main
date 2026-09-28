@@ -14,6 +14,7 @@ import {
   Modal,
   Spinner,
 } from "@/components/ui";
+import { IdentityFields, IdentityCell, EMPTY_IDENTITY, type IdentityValue } from "@/components/identity-fields";
 
 interface Member {
   id: string;
@@ -22,6 +23,10 @@ interface Member {
   status: string;
   mfaEnabled: boolean | null;
   createdAt: string;
+  phone: string | null;
+  idType: string | null;
+  idNumber: string | null;
+  kraPin: string | null;
 }
 interface Role {
   id: string;
@@ -51,6 +56,28 @@ export default function TeamPage() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Member | null>(null);
+  const [idForm, setIdForm] = useState<IdentityValue>(EMPTY_IDENTITY);
+  const [idPhone, setIdPhone] = useState("");
+  const [idError, setIdError] = useState<string | null>(null);
+
+  async function saveIdentity(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setIdError(null);
+    const res = await fetch(`/api/team/${editing.id}/identity`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...idForm, phone: idPhone }),
+    });
+    const d = await res.json();
+    if (!res.ok) {
+      setIdError(d.error?.message ?? "Could not save");
+      return;
+    }
+    setEditing(null);
+    load();
+  }
 
   function load() {
     fetch("/api/team")
@@ -139,11 +166,15 @@ export default function TeamPage() {
           ))}
         </div>
       ) : (
-        <TableShell headers={["Name", "Email", "MFA", "Status", "Joined"]}>
+        <TableShell headers={["Name", "Email", "Phone", "Identity", "MFA", "Status", "Joined", ""]}>
           {users.map((u) => (
             <tr key={u.id} className="hover:bg-surface/60">
               <td className="px-4 py-3 font-medium">{u.fullName}</td>
               <td className="px-4 py-3 text-sm text-muted">{u.email}</td>
+              <td className="px-4 py-3 font-mono text-xs">{u.phone ?? "—"}</td>
+              <td className="px-4 py-3">
+                <IdentityCell idType={u.idType} idNumber={u.idNumber} kraPin={u.kraPin} />
+              </td>
               <td className="px-4 py-3">
                 <Badge tone={u.mfaEnabled ? "success" : "warning"}>
                   {u.mfaEnabled ? "Enabled" : "Off"}
@@ -156,6 +187,20 @@ export default function TeamPage() {
               </td>
               <td className="px-4 py-3 text-xs text-muted">
                 {new Date(u.createdAt).toLocaleDateString()}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => {
+                    setEditing(u);
+                    setIdError(null);
+                    setIdPhone(u.phone ?? "");
+                    // The list shows a masked ID; re-enter it to change it.
+                    setIdForm({ idType: u.idType ?? "NATIONAL_ID", idNumber: "", kraPin: u.kraPin ?? "" });
+                  }}
+                >
+                  Identity
+                </button>
               </td>
             </tr>
           ))}
@@ -214,6 +259,23 @@ export default function TeamPage() {
           </div>
         </form>
       </Modal>
+          {editing ? (
+        <Modal open onClose={() => setEditing(null)} title={`Identity · ${editing.fullName}`}>
+          <form onSubmit={saveIdentity} className="space-y-4">
+            <div>
+              <Label htmlFor="tm-phone">Phone</Label>
+              <Input id="tm-phone" inputMode="tel" value={idPhone} onChange={(e) => setIdPhone(e.target.value)} placeholder="0712 345 678" />
+            </div>
+            <IdentityFields prefix="tm" value={idForm} onChange={setIdForm} />
+            {editing.idNumber ? <p className="text-xs text-muted">Current ID on file: {editing.idNumber}. Leave blank to clear it, or re-enter it to keep it.</p> : null}
+            {idError ? <p className="text-sm text-danger">{idError}</p> : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button type="submit">Save identity</Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { schema, toJsonSafe, type Db } from "@zfloat/database";
 import { applyProviderFailure, applyProviderSuccess } from "./execute.js";
+import { failCollection, findCollectionByProviderReference, settleCollection } from "./collections.js";
 import type { PaymentProvider } from "@zfloat/providers";
 
 export class WebhookError extends Error {
@@ -52,7 +53,16 @@ export async function ingestWebhook(db: Db, incoming: IncomingWebhook): Promise<
         providerId: undefined,
         type,
         providerEventId: eventId,
-        payload: toJsonSafe(verified.event?.raw ?? {}) as Record<string, unknown>,
+        // Raw provider body + the adapter's normalised fields, so processing is
+        // provider-agnostic (Daraja bodies carry no top-level providerReference).
+        payload: toJsonSafe({
+          ...(verified.event?.raw ?? {}),
+          providerReference: (verified.event?.raw as Record<string, unknown> | undefined)?.providerReference ?? verified.event?.providerReference,
+          status: (verified.event?.raw as Record<string, unknown> | undefined)?.status ?? verified.event?.status,
+          ...(verified.event?.amountMinor !== undefined && (verified.event?.raw as Record<string, unknown> | undefined)?.amountMinor === undefined
+            ? { amountMinor: verified.event.amountMinor.toString() }
+            : {}),
+        }) as Record<string, unknown>,
         signature: JSON.stringify(incoming.headers).slice(0, 1000),
         status: "RECEIVED",
       })
@@ -100,6 +110,25 @@ export async function processWebhookEvent(db: Db, eventId: string): Promise<void
     .orderBy(desc(schema.paymentAttempts.createdAt))
     .limit(1);
   if (!attempt) {
+    // Inbound money: an STK push (request-to-pay) callback correlates on the
+    // CheckoutRequestID stored on the collection, not on a payment attempt.
+    const collection = await findCollectionByProviderReference(db, providerReference);
+    if (collection) {
+      const cbStatus = String(payload.status ?? "SUCCESS");
+      if (cbStatus === "SUCCESS") {
+        await settleCollection(db, {
+          collectionId: collection.id,
+          receiptNumber: payload.receiptNumber ? String(payload.receiptNumber) : null,
+          amountMinor: typeof payload.amountMinor === "string" && /^\d+$/.test(payload.amountMinor) ? BigInt(payload.amountMinor) : null,
+          payerPhone: payload.payerPhone ? String(payload.payerPhone) : null,
+          raw: payload,
+        });
+      } else if (cbStatus === "FAILED") {
+        await failCollection(db, { collectionId: collection.id, reason: String(payload.errorMessage ?? "Payer cancelled or the request failed"), raw: payload });
+      }
+      await db.update(schema.webhookEvents).set({ status: "PROCESSED", processedAt: new Date() }).where(eq(schema.webhookEvents.id, event.id));
+      return;
+    }
     // Unknown to us: record as a reconciliation orphan (provider side movement
     // with no matching internal payment) — once. This is a permanent condition:
     // mark the event UNMATCHED and return so the queue does not retry (each

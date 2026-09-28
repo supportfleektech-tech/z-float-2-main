@@ -8,6 +8,7 @@
  *  - Transaction status query: POST /mpesa/transactionstatus/v1/query
  *  - Reversal: POST /mpesa/reversal/v1/request
  *  - STK Push (till/paybill): POST /mpesa/stkpush/v1/processrequest
+ *  - C2B register URLs: POST /mpesa/c2b/v1/registerurl (receive paybill/till payments)
  * Callback validation is via Daraja's password/signature conventions where the
  * provider documents them; in sandbox mode verifyWebhook checks the configured
  * sandbox secret.
@@ -31,6 +32,10 @@ import {
   type ProviderStatusResult,
   type ProviderWebhookRequest,
   type VerifiedWebhook,
+  type CollectionProvider,
+  type CollectionRequestInput,
+  type CollectionRequestResult,
+  type C2BConfirmation,
 } from "./types.js";
 import { getCircuitBreaker } from "./circuit-breaker.js";
 
@@ -44,7 +49,57 @@ interface DarajaToken {
   expires_in: number;
 }
 
-export class MpesaProviderAdapter implements PaymentProvider {
+/** 07xx / +2547xx / 2547xx → 2547xxxxxxxx (Daraja MSISDN format). */
+export function toDarajaMsisdn(phone: string): string {
+  return phone.replace(/[^0-9]/g, "").replace(/^0/, "254");
+}
+
+/** Daraja timestamp yyyyMMddHHmmss in Kenyan local time (EAT, UTC+3). */
+export function darajaTimestamp(d = new Date()): string {
+  const eat = new Date(d.getTime() + 3 * 3600_000);
+  return eat.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+}
+
+/** Parse a Daraja C2B confirmation/validation body. Returns null if it isn't one. */
+export function parseC2BConfirmation(rawBody: string): C2BConfirmation | null {
+  let b: Record<string, unknown>;
+  try {
+    b = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const transId = String(b.TransID ?? "").trim();
+  const amount = String(b.TransAmount ?? "").trim();
+  if (!transId || !/^\d+(\.\d{1,2})?$/.test(amount)) return null;
+  const [whole = "0", frac = ""] = amount.split(".");
+  const payerName = [b.FirstName, b.MiddleName, b.LastName].filter((x) => typeof x === "string" && x.trim()).join(" ");
+  return {
+    transId,
+    transType: String(b.TransactionType ?? ""),
+    transTime: String(b.TransTime ?? ""),
+    amountMinor: BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2)),
+    shortCode: String(b.BusinessShortCode ?? ""),
+    billRefNumber: String(b.BillRefNumber ?? "").trim(),
+    invoiceNumber: String(b.InvoiceNumber ?? "").trim(),
+    msisdn: String(b.MSISDN ?? ""),
+    payerName,
+    raw: b,
+  };
+}
+
+/** Extract the STK callback metadata (Amount, MpesaReceiptNumber, PhoneNumber). */
+export function parseStkCallbackMetadata(stk: Record<string, unknown>): { amount?: number; receiptNumber?: string; phone?: string } {
+  const items = ((stk.CallbackMetadata as Record<string, unknown> | undefined)?.Item ?? []) as Array<{ Name?: string; Value?: unknown }>;
+  const get = (n: string) => items.find((i) => i.Name === n)?.Value;
+  const amount = get("Amount");
+  return {
+    amount: typeof amount === "number" ? amount : amount !== undefined ? Number(amount) : undefined,
+    receiptNumber: get("MpesaReceiptNumber") !== undefined ? String(get("MpesaReceiptNumber")) : undefined,
+    phone: get("PhoneNumber") !== undefined ? String(get("PhoneNumber")) : undefined,
+  };
+}
+
+export class MpesaProviderAdapter implements PaymentProvider, CollectionProvider {
   readonly code = "mpesa-safaricom";
   readonly providerType = "mpesa" as const;
 
@@ -154,8 +209,8 @@ export class MpesaProviderAdapter implements PaymentProvider {
         PartyA: config.MPESA_SHORTCODE,
         PartyB: (input.destination.phone ?? "").replace("+", "").replace(/^0/, "254"),
         Remarks: input.reference.slice(0, 100),
-        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
-        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
+        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
+        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
         Occasion: "Z-float",
       };
       const res = await this.darajaPost("/mpesa/b2c/v1/paymentrequest", body);
@@ -174,7 +229,7 @@ export class MpesaProviderAdapter implements PaymentProvider {
         PartyA: (input.destination.phone ?? "").replace("+", "").replace(/^0/, "254"),
         PartyB: config.MPESA_SHORTCODE,
         PhoneNumber: (input.destination.phone ?? "").replace("+", "").replace(/^0/, "254"),
-        CallBackURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
+        CallBackURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
         AccountReference: input.destination.paybillAccount ?? "Z-FLOAT",
         TransactionDesc: input.reference.slice(0, 13),
       };
@@ -187,6 +242,66 @@ export class MpesaProviderAdapter implements PaymentProvider {
       "PROVIDER_INVALID_REQUEST",
       this.code,
     );
+  }
+
+  /**
+   * Lipa na M-Pesa Online (STK push): prompts the payer's handset for their
+   * PIN. The outcome always arrives asynchronously on the CallBackURL.
+   */
+  async requestCollection(input: CollectionRequestInput): Promise<CollectionRequestResult> {
+    this.credentials();
+    const config = getConfig();
+    if (!config.MPESA_PASSKEY) {
+      throw new ProviderError("MPESA_PASSKEY not configured — STK push is fail-closed", "PROVIDER_AUTH_FAILED", this.code);
+    }
+    const timestamp = darajaTimestamp();
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+    const msisdn = toDarajaMsisdn(input.phone);
+    const till = input.kind === "till" && config.MPESA_TILL_NUMBER;
+    const body = {
+      BusinessShortCode: config.MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: till ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline",
+      Amount: Math.ceil(Number(input.amountMinor) / 100), // Daraja accepts whole shillings only
+      PartyA: msisdn,
+      PartyB: till ? config.MPESA_TILL_NUMBER : config.MPESA_SHORTCODE,
+      PhoneNumber: msisdn,
+      CallBackURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
+      AccountReference: input.accountReference.slice(0, 12),
+      TransactionDesc: input.description.slice(0, 13) || "Payment",
+    };
+    const res = await this.darajaPost("/mpesa/stkpush/v1/processrequest", body);
+    const code = String(res.ResponseCode ?? "");
+    if (code === "0") {
+      return {
+        status: "PENDING",
+        async: true,
+        providerReference: String(res.CheckoutRequestID ?? ""),
+        customerMessage: String(res.CustomerMessage ?? "Check your phone and enter your M-Pesa PIN"),
+        raw: { merchantRequestId: res.MerchantRequestID, checkoutRequestId: res.CheckoutRequestID, responseCode: code },
+      };
+    }
+    return {
+      status: "FAILED",
+      async: false,
+      errorCode: `DARAJA_${code || "UNKNOWN"}`,
+      errorMessage: String(res.ResponseDescription ?? res.errorMessage ?? "STK push rejected"),
+      raw: res,
+    };
+  }
+
+  /** Register C2B validation + confirmation URLs for the shortcode (one-off, per environment). */
+  async registerC2BUrls(opts: { responseType?: "Completed" | "Cancelled" } = {}): Promise<Record<string, unknown>> {
+    this.credentials();
+    const config = getConfig();
+    const token = config.MPESA_C2B_CALLBACK_TOKEN ? `?token=${encodeURIComponent(config.MPESA_C2B_CALLBACK_TOKEN)}` : "";
+    return this.darajaPost("/mpesa/c2b/v1/registerurl", {
+      ShortCode: config.MPESA_SHORTCODE,
+      ResponseType: opts.responseType ?? "Completed",
+      ConfirmationURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa/c2b/confirmation${token}`,
+      ValidationURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa/c2b/validation${token}`,
+    });
   }
 
   private mapDarajaResponse(res: Record<string, unknown>, input: ProviderPaymentInput): ProviderPaymentResult {
@@ -223,8 +338,8 @@ export class MpesaProviderAdapter implements PaymentProvider {
         TransactionID: input.providerReference,
         PartyA: config.MPESA_SHORTCODE,
         IdentifierType: "4",
-        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
-        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
+        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
+        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
         Remarks: "status-query",
         Occasion: "Z-float",
       });
@@ -254,8 +369,8 @@ export class MpesaProviderAdapter implements PaymentProvider {
         Amount: Number(input.amountMinor) / 100,
         ReceiverParty: config.MPESA_SHORTCODE,
         RecieverIdentifierType: "11",
-        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
-        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/v1/webhooks/mpesa`,
+        ResultURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
+        QueueTimeOutURL: `${config.MPESA_CALLBACK_BASE_URL}/api/webhooks/mpesa`,
         Remarks: input.reason.slice(0, 100),
         Occasion: "Z-float",
       });
@@ -289,6 +404,8 @@ export class MpesaProviderAdapter implements PaymentProvider {
     if (!ref) return { valid: false, reason: "missing transaction reference" };
     const resultCode = String(stk.ResultCode ?? "0");
     const status = resultCode === "0" ? "SUCCESS" : "FAILED";
+    const meta = parseStkCallbackMetadata(stk);
+    const amount = meta.amount ?? (typeof raw.Amount === "number" ? raw.Amount : undefined);
     return {
       valid: true,
       providerEventId: ref,
@@ -296,9 +413,14 @@ export class MpesaProviderAdapter implements PaymentProvider {
         type: status === "SUCCESS" ? "payment.completed" : "payment.failed",
         providerReference: ref,
         status,
-        amountMinor: typeof raw.Amount === "number" ? BigInt(Math.round(raw.Amount * 100)) : undefined,
+        amountMinor: amount !== undefined && Number.isFinite(amount) ? BigInt(Math.round(amount * 100)) : undefined,
         occurredAt: new Date().toISOString(),
-        raw,
+        raw: {
+          ...raw,
+          receiptNumber: meta.receiptNumber,
+          payerPhone: meta.phone,
+          errorMessage: status === "FAILED" ? String(stk.ResultDesc ?? "M-Pesa request failed") : undefined,
+        },
       },
     };
   }

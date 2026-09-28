@@ -197,3 +197,6 @@ export function getObjectStore(opts?: { refresh?: boolean }): ObjectStore {
 export function resetObjectStore(): void {
   cached = null;
 }
+
+export { clamdScan, parseClamdReply, encodeInstream } from "./clamd.js";
+export type { ClamdVerdict, ClamdScanResult, ClamdOptions } from "./clamd.js";

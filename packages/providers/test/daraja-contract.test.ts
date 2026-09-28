@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from "vitest";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { resetConfig, getConfig } from "@zfloat/config";
-import { MpesaProviderAdapter } from "../src/index.js";
+import { MpesaProviderAdapter, MockProvider, parseC2BConfirmation, isCollectionProvider } from "../src/index.js";
 import type { ProviderPaymentInput, ProviderReversalInput, ProviderStatusInput } from "../src/index.js";
 
 /* ------------------------------------------------------------------ */
@@ -90,6 +90,10 @@ function makeEmulator(opts: { oauthDelayMs?: number } = {}): Promise<{ port: num
           CheckoutRequestID: "ws_CO_123",
           MerchantRequestID: "MR-1",
         });
+      }
+
+      if (url.pathname === "/mpesa/c2b/v1/registerurl") {
+        return send(200, { OriginatorCoversationID: "C2B-1", ResponseCode: "0", ResponseDescription: "Success" });
       }
 
       if (url.pathname === "/mpesa/transactionstatus/v1/query") {
@@ -196,8 +200,8 @@ describe("MpesaProviderAdapter — Daraja contract", () => {
       PartyA: "174379",
       PartyB: "254712345678", // E.164 phone → 254…
       InitiatorName: "testapi",
-      ResultURL: "http://localhost/api/v1/webhooks/mpesa",
-      QueueTimeOutURL: "http://localhost/api/v1/webhooks/mpesa",
+      ResultURL: "http://localhost/api/webhooks/mpesa",
+      QueueTimeOutURL: "http://localhost/api/webhooks/mpesa",
     });
   });
 
@@ -315,5 +319,115 @@ describe("MpesaProviderAdapter — Daraja contract", () => {
     await expect(adapter.createPayment(input({ destination: { channel: "bank", bankCode: "01" } }))).rejects.toMatchObject({
       code: "PROVIDER_INVALID_REQUEST",
     });
+  });
+
+  it("collections: STK push request-to-pay posts the documented Express payload", async () => {
+    cfg(emulator!.port);
+    const adapter = new MpesaProviderAdapter("sandbox");
+    expect(isCollectionProvider(adapter)).toBe(true);
+    const res = await adapter.requestCollection({
+      collectionId: "22222222-2222-2222-2222-222222222222",
+      reference: "COL-000001",
+      amountMinor: 150_050n,
+      currency: "KES",
+      phone: "+254712345678",
+      accountReference: "INV-000123-LONG",
+      description: "Invoice INV-000123",
+    });
+    expect(res).toMatchObject({ status: "PENDING", async: true, providerReference: "ws_CO_123" });
+    expect(emulator!.stats.lastBody).toMatchObject({
+      BusinessShortCode: "174379",
+      TransactionType: "CustomerPayBillOnline",
+      Amount: 1501, // whole shillings, rounded up
+      PartyA: "254712345678",
+      PartyB: "174379",
+      PhoneNumber: "254712345678",
+      AccountReference: "INV-000123-L", // 12-char Daraja limit
+      CallBackURL: "http://localhost/api/webhooks/mpesa",
+    });
+    const pwd = Buffer.from(String(emulator!.stats.lastBody!.Password), "base64").toString();
+    expect(pwd.startsWith("174379passkey")).toBe(true);
+  });
+
+  it("collections: registers C2B confirmation/validation URLs (with optional token)", async () => {
+    cfg(emulator!.port, { MPESA_C2B_CALLBACK_TOKEN: "s3cret" });
+    const adapter = new MpesaProviderAdapter("sandbox");
+    await adapter.registerC2BUrls();
+    expect(emulator!.stats.lastBody).toMatchObject({
+      ShortCode: "174379",
+      ResponseType: "Completed",
+      ConfirmationURL: "http://localhost/api/webhooks/mpesa/c2b/confirmation?token=s3cret",
+      ValidationURL: "http://localhost/api/webhooks/mpesa/c2b/validation?token=s3cret",
+    });
+  });
+
+  it("verifyWebhook extracts STK callback metadata (receipt, amount, phone)", async () => {
+    cfg(emulator!.port);
+    const adapter = new MpesaProviderAdapter("sandbox");
+    const v = await adapter.verifyWebhook({
+      headers: {},
+      rawBody: JSON.stringify({
+        Body: {
+          stkCallback: {
+            MerchantRequestID: "MR-1",
+            CheckoutRequestID: "ws_CO_123",
+            ResultCode: 0,
+            ResultDesc: "The service request is processed successfully.",
+            CallbackMetadata: {
+              Item: [
+                { Name: "Amount", Value: 1501 },
+                { Name: "MpesaReceiptNumber", Value: "SFT3XYZ123" },
+                { Name: "PhoneNumber", Value: 254712345678 },
+              ],
+            },
+          },
+        },
+      }),
+    });
+    expect(v.valid).toBe(true);
+    expect(v.event).toMatchObject({ providerReference: "ws_CO_123", status: "SUCCESS", amountMinor: 150100n });
+    expect(v.event!.raw).toMatchObject({ receiptNumber: "SFT3XYZ123", payerPhone: "254712345678" });
+  });
+});
+
+describe("C2B confirmation parsing", () => {
+  it("normalises the Daraja confirmation body", () => {
+    const c = parseC2BConfirmation(
+      JSON.stringify({
+        TransactionType: "Pay Bill",
+        TransID: "RKTQDM7W6S",
+        TransTime: "20260925123000",
+        TransAmount: "2320.50",
+        BusinessShortCode: "600638",
+        BillRefNumber: "INV-000007",
+        InvoiceNumber: "",
+        MSISDN: "254708374149",
+        FirstName: "John",
+        MiddleName: "",
+        LastName: "Doe",
+      }),
+    );
+    expect(c).toMatchObject({ transId: "RKTQDM7W6S", amountMinor: 232050n, billRefNumber: "INV-000007", payerName: "John Doe" });
+    expect(parseC2BConfirmation("{}")).toBeNull();
+    expect(parseC2BConfirmation("not json")).toBeNull();
+    expect(parseC2BConfirmation(JSON.stringify({ TransID: "X", TransAmount: "1e5" }))).toBeNull();
+  });
+
+  it("mock provider supports sandbox collections", async () => {
+    resetConfig();
+    getConfig({ env: { NODE_ENV: "test", DATABASE_URL: "postgresql://localhost/x", MOCK_PROVIDER_LATENCY_MS: "0" }, lenient: true });
+    const p = new MockProvider("success");
+    const r = await p.requestCollection({
+      collectionId: "33333333-3333-3333-3333-333333333333",
+      reference: "COL-1",
+      amountMinor: 100n,
+      currency: "KES",
+      phone: "+254712345678",
+      accountReference: "X",
+      description: "d",
+    });
+    expect(r.status).toBe("PENDING");
+    expect(r.providerReference).toMatch(/^ws_CO_MOCK_/);
+    expect((await new MockProvider("fail").requestCollection({ ...{ collectionId: "a", reference: "b", amountMinor: 1n, currency: "KES", phone: "+254712345678", accountReference: "c", description: "d" } })).status).toBe("FAILED");
   });
 });

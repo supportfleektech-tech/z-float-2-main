@@ -38,6 +38,10 @@ export interface RegisterBeneficiaryInput {
   paybillNumber?: string;
   paybillAccount?: string;
   notes?: string;
+  /** Identity — validated/normalised by the caller (see @zfloat/validation normalizeIdentity). */
+  idType?: string | null;
+  idNumber?: string | null;
+  kraPin?: string | null;
 }
 
 /** Maker step: create the payee as PENDING and raise an approval request.
@@ -62,6 +66,9 @@ export async function registerBeneficiary(
         paybillNumber: input.paybillNumber,
         paybillAccount: input.paybillAccount,
         notes: input.notes,
+        idType: input.idType ?? null,
+        idNumber: input.idNumber ?? null,
+        kraPin: input.kraPin ?? null,
         status: "PENDING",
         createdById: input.createdById,
       })

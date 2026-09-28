@@ -72,6 +72,8 @@ bottom. Anything unchecked is a release blocker.
 - [ ] Personal data handled per applicable law (ODPC-aligned principles);
       consent records stored (`consent_records`).
 - [ ] Uploads scanned (clamd in production; mock scanner in dev) before parsing.
+      The worker streams the stored object's bytes to clamd (INSTREAM) after
+      verifying its SHA-256 against the upload record; any error fails closed.
 - [ ] Audit trail for all financial + admin actions (`audit_events`).
 - [ ] Backups encrypted at rest; restore drill exercised (see runbooks).
 

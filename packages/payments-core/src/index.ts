@@ -15,6 +15,7 @@ export * from "./outbound.js";
 export * from "./idempotency-gc.js";
 export * from "./report-schedules.js";
 export * from "./payment-links.js";
+export * from "./collections.js";
 
 export { handleOutboxEvent, processOutboxBatch, dispatchOutboxTick, runOutboxPoller, getOutboxRelayLeaseKey } from "./outbox-relay.js";
 export type { OutboxHandler, OutboxEventRef, OutboxBatchResult, OutboxTickResult, OutboxPoller, OutboxPollerOptions } from "./outbox-relay.js";

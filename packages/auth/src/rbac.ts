@@ -35,6 +35,8 @@ export const PERMISSIONS = {
   "expenses.manage": "Manage expenses",
   "bills.manage": "Manage bills",
   "airtime.manage": "Manage airtime purchases",
+  "collections.manage": "Receive payments (collections)",
+  "invoices.manage": "Issue eTIMS invoices & receipts",
   // platform surface
   "admin.tenants": "Manage tenants",
   "admin.providers": "Manage providers",
@@ -63,13 +65,14 @@ export const BUSINESS_ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     "batch.create", "batch.approve", "recipient.manage", "wallet.read", "wallet.fund",
     "ledger.read", "reports.read", "reports.export", "reconciliation.manage",
     "approvals.manage", "payroll.manage", "expenses.manage", "bills.manage", "airtime.manage",
+    "collections.manage", "invoices.manage",
   ],
-  MAKER: ["payment.create", "payment.read", "batch.create", "recipient.manage", "bills.manage", "airtime.manage", "expenses.manage"],
+  MAKER: ["payment.create", "payment.read", "batch.create", "recipient.manage", "bills.manage", "airtime.manage", "expenses.manage", "collections.manage"],
   APPROVER: ["payment.read", "payment.approve", "batch.approve", "reports.read"],
   PAYROLL_OFFICER: ["payment.read", "payroll.manage", "batch.create", "recipient.manage"],
   PROCUREMENT_OFFICER: ["payment.read", "payment.create", "recipient.manage", "bills.manage", "expenses.manage"],
-  ACCOUNTANT: ["payment.read", "ledger.read", "reports.read", "reports.export", "reconciliation.manage"],
-  BRANCH_MANAGER: ["payment.read", "payment.create", "payment.approve", "reports.read", "wallet.read"],
+  ACCOUNTANT: ["payment.read", "ledger.read", "reports.read", "reports.export", "reconciliation.manage", "invoices.manage"],
+  BRANCH_MANAGER: ["payment.read", "payment.create", "payment.approve", "reports.read", "wallet.read", "collections.manage", "invoices.manage"],
   VIEWER: ["payment.read", "reports.read", "wallet.read"],
 };
 

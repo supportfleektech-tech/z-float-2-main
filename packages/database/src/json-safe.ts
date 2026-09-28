@@ -6,6 +6,8 @@
  */
 export function toJsonSafe(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
+  // Dates have no enumerable own keys — without this they collapse to {}.
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (Array.isArray(value)) return value.map(toJsonSafe);
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};

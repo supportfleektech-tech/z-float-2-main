@@ -108,6 +108,8 @@ async function main() {
       "expenses.manage",
       "bills.manage",
       "airtime.manage",
+      "collections.manage",
+      "invoices.manage",
     ],
     ADMIN: [
       "payment.create",
@@ -130,6 +132,8 @@ async function main() {
       "expenses.manage",
       "bills.manage",
       "airtime.manage",
+      "collections.manage",
+      "invoices.manage",
     ],
     FINANCE_MANAGER: [
       "payment.create",
@@ -150,6 +154,8 @@ async function main() {
       "expenses.manage",
       "bills.manage",
       "airtime.manage",
+      "collections.manage",
+      "invoices.manage",
     ],
     MAKER: [
       "payment.create",
@@ -159,6 +165,7 @@ async function main() {
       "bills.manage",
       "airtime.manage",
       "expenses.manage",
+      "collections.manage",
     ],
     APPROVER: [
       "payment.read",
@@ -185,6 +192,7 @@ async function main() {
       "reports.read",
       "reports.export",
       "reconciliation.manage",
+      "invoices.manage",
     ],
     BRANCH_MANAGER: [
       "payment.read",
@@ -192,6 +200,8 @@ async function main() {
       "payment.approve",
       "reports.read",
       "wallet.read",
+      "collections.manage",
+      "invoices.manage",
     ],
     VIEWER: ["payment.read", "reports.read", "wallet.read"],
     SUPER_ADMIN: [

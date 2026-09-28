@@ -9,6 +9,8 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 20_000 },
   retries: 1,
+  // On CI, surface failures as GitHub annotations on the PR as well.
+  reporter: process.env.CI ? [["github"], ["list"], ["html", { open: "never" }]] : "list",
   globalSetup: "./e2e/global-setup.ts",
   // One worker keeps the dev server's on-demand compile predictable.
   fullyParallel: false,

@@ -32,7 +32,8 @@
     "zod": "^3.23.8",
     "@zfloat/kyc": "workspace:*",
     "@zfloat/storage": "workspace:*",
-    "@zfloat/audit": "workspace:*"
+    "@zfloat/audit": "workspace:*",
+    "@zfloat/etims": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

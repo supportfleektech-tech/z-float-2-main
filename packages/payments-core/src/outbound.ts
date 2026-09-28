@@ -27,7 +27,16 @@ import { schema, type Db } from "@zfloat/database";
 import { enqueue, type QueueClient } from "@zfloat/queue";
 import { decryptSecret, encryptSecret } from "@zfloat/auth";
 
-export const OUTBOUND_EVENTS = ["payment.completed", "payment.failed", "payment.reversed", "batch.completed", "wallet.funded"] as const;
+export const OUTBOUND_EVENTS = [
+  "payment.completed",
+  "payment.failed",
+  "payment.reversed",
+  "batch.completed",
+  "wallet.funded",
+  "collection.received",
+  "collection.failed",
+  "invoice.fiscalised",
+] as const;
 export type OutboundEvent = (typeof OUTBOUND_EVENTS)[number];
 
 /** Delivery row statuses — PENDING (queued/retrying) | DELIVERED | FAILED (DLQ). */
