@@ -597,69 +597,28 @@ async function main() {
   // eslint-disable-next-line no-console
   console.log("[seed] pricing (fee rules + versions)...");
   const feeDefs = [
-    {
-      product: "single_payment",
-      channel: "mpesa",
-      provider: "mpesa-safaricom",
-      flat: "0",
-      pct: "1.5",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "single_payment",
-      channel: "mpesa",
-      provider: "local-sandbox",
-      flat: "0",
-      pct: "1.5",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "single_payment",
-      channel: "till",
-      provider: "local-sandbox",
-      flat: "5.00",
-      pct: "0.5",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "bulk_payment",
-      channel: "mpesa",
-      provider: "local-sandbox",
-      flat: "0",
-      pct: "1.0",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "bulk_payment",
-      channel: "mpesa",
-      provider: "mpesa-safaricom",
-      flat: "0",
-      pct: "1.0",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "payroll",
-      channel: "mpesa",
-      provider: "local-sandbox",
-      flat: "0",
-      pct: "0.75",
-      min: "0",
-      max: "0",
-    },
-    {
-      product: "airtime",
-      channel: "airtime",
-      provider: "local-sandbox",
-      flat: "0",
-      pct: "2.0",
-      min: "0",
-      max: "0",
-    },
+    // M-PESA single payment — banded
+    { product: "single_payment", channel: "mpesa", provider: "mpesa-safaricom", amountMinorMin: null, amountMinorMax: 100000, flatFeeMinor: 1000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "single_payment", channel: "mpesa", provider: "mpesa-safaricom", amountMinorMin: 100001, amountMinorMax: null, flatFeeMinor: 2500, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "single_payment", channel: "mpesa", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: 100000, flatFeeMinor: 1000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "single_payment", channel: "mpesa", provider: "local-sandbox", amountMinorMin: 100001, amountMinorMax: null, flatFeeMinor: 2500, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Paybill / Till
+    { product: "single_payment", channel: "till", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 3000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "single_payment", channel: "paybill", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 3000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Bank transfer (PesaLink)
+    { product: "single_payment", channel: "bank", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 3500, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Bulk payment
+    { product: "bulk_payment", channel: "mpesa", provider: "mpesa-safaricom", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 2500, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "bulk_payment", channel: "mpesa", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 2500, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Payroll
+    { product: "payroll", channel: "mpesa", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 2000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    { product: "payroll", channel: "mpesa", provider: "mpesa-safaricom", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 2000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Airtime (free + 2% cashback)
+    { product: "airtime", channel: "airtime", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 0, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Bills (KPLC, KRA, water)
+    { product: "bills", channel: "bills", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 3000, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
+    // Wallet top-up (free)
+    { product: "wallet_top_up", channel: "mpesa", provider: "local-sandbox", amountMinorMin: null, amountMinorMax: null, flatFeeMinor: 0, percentBps: 0, minFeeMinor: 0, maxFeeMinor: 0 },
   ];
   for (let v = 1; v <= 3; v++) {
     for (const f of feeDefs) {
@@ -670,10 +629,12 @@ async function main() {
           product: f.product,
           channel: f.channel,
           provider: f.provider,
-          flatFeeMinor: KES(f.flat),
-          percentBps: BigInt(Math.round(Number(f.pct) * 100)),
-          minFeeMinor: KES(f.min),
-          maxFeeMinor: KES(f.max),
+          amountMinorMin: f.amountMinorMin,
+          amountMinorMax: f.amountMinorMax,
+          flatFeeMinor: BigInt(f.flatFeeMinor),
+          percentBps: BigInt(f.percentBps),
+          minFeeMinor: BigInt(f.minFeeMinor),
+          maxFeeMinor: BigInt(f.maxFeeMinor),
           currency: "KES",
           status: v === 3 ? "ACTIVE" : "DISABLED",
           version: v,
