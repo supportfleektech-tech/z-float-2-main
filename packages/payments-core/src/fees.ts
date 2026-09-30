@@ -5,7 +5,7 @@
  * The exact rule that applied is snapshotted into fee_calculations so past
  * transactions keep their historical fee even if pricing changes later.
  */
-import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { schema, toJsonSafe, type Db, type Tx } from "@zfloat/database";
 import { Money, parseMinor } from "@zfloat/money";
 
@@ -42,11 +42,11 @@ export async function findFeeRule(db: Db, amountMinor: bigint, ctx: FeeContext) 
         or(eq(schema.feeRules.tenantId, ctx.tenantId), isNull(schema.feeRules.tenantId)),
         or(
           isNull(schema.feeRules.amountMinorMin),
-          lte(schema.feeRules.amountMinorMin, amountMinor),
+          sql`amount_minor_min <= ${Number(amountMinor)}`,
         ),
         or(
           isNull(schema.feeRules.amountMinorMax),
-          gte(schema.feeRules.amountMinorMax, amountMinor),
+          sql`amount_minor_max >= ${Number(amountMinor)}`,
         ),
       ),
     )
@@ -55,9 +55,15 @@ export async function findFeeRule(db: Db, amountMinor: bigint, ctx: FeeContext) 
 
   const filtered = rows.filter(
     (row) =>
-      (row.amountMinorMin === null || row.amountMinorMin <= amountMinor) &&
-      (row.amountMinorMax === null || row.amountMinorMax >= amountMinor),
+      (row.amountMinorMin === null || row.amountMinorMin <= Number(amountMinor)) &&
+      (row.amountMinorMax === null || row.amountMinorMax >= Number(amountMinor)),
   );
+  if (process.env.DEBUG_FEES) {
+    console.log("[findFeeRule] amountMinor:", amountMinor, "rows:", rows.length, "filtered:", filtered.length);
+    for (const row of rows) {
+      console.log("  row:", row.product, row.channel, row.provider, "min:", row.amountMinorMin, "max:", row.amountMinorMax, "fee:", row.flatFeeMinor);
+    }
+  }
   return filtered[0] ?? null;
 }
 
