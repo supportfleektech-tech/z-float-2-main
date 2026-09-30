@@ -122,6 +122,10 @@ export async function processWebhookEvent(db: Db, eventId: string): Promise<void
           amountMinor: typeof payload.amountMinor === "string" && /^\d+$/.test(payload.amountMinor) ? BigInt(payload.amountMinor) : null,
           payerPhone: payload.payerPhone ? String(payload.payerPhone) : null,
           raw: payload,
+          // Wallet top-ups (STK push with accountReference WALLET-TOPUP) are
+          // credited through the same settlement path; tag the wallet-ledger
+          // entry so top-ups are distinguishable from invoice collections.
+          refType: collection.accountReference === "WALLET-TOPUP" ? "wallet_top_up" : undefined,
         });
       } else if (cbStatus === "FAILED") {
         await failCollection(db, { collectionId: collection.id, reason: String(payload.errorMessage ?? "Payer cancelled or the request failed"), raw: payload });
