@@ -1,26 +1,31 @@
 import { NextRequest } from "next/server";
 import { getDb } from "@zfloat/database";
 import { computeFee } from "@zfloat/payments-core";
-import { getSessionUser, apiOk, apiError } from "@/lib/api";
+import { apiOk, apiError } from "@/lib/api";
 
-/** Live fee preview — server-computed, never trusted from the client. */
-export async function GET(request: NextRequest) {
-  const user = await getSessionUser();
-  if (!user) return apiError(401, "UNAUTHENTICATED", "Sign in to continue");
-  const channel = request.nextUrl.searchParams.get("channel") ?? "mpesa";
-  const amount = request.nextUrl.searchParams.get("amount") ?? "0";
-  const product = request.nextUrl.searchParams.get("product") ?? "single_payment";
+const SAMPLE_AMOUNTS = [500, 1000, 5000, 10000];
 
+/** Public fee preview for the marketing pricing page. */
+export async function GET(_request: NextRequest) {
   const { db } = getDb();
   try {
-    const fee = await computeFee(db, BigInt(Math.round(Number(amount) * 100)), {
-      tenantId: user.tenantId ?? "00000000-0000-0000-0000-000000000000",
-      product,
-      channel,
-      providerCode: "local-sandbox",
-    });
-    return apiOk({ data: { feeMinor: fee.feeMinor.toString(), currency: fee.currency } });
+    const fees = [];
+    for (const amount of SAMPLE_AMOUNTS) {
+      const amountMinor = BigInt(amount * 100);
+      const fee = await computeFee(db, amountMinor, {
+        tenantId: "00000000-0000-0000-0000-000000000000",
+        product: "single_payment",
+        channel: "mpesa",
+        providerCode: "local-sandbox",
+      });
+      fees.push({
+        amount,
+        feeMinor: fee.feeMinor.toString(),
+        currency: fee.currency,
+      });
+    }
+    return apiOk({ fees });
   } catch {
-    return apiOk({ data: { feeMinor: "0", currency: "KES" } });
+    return apiError(500, "FEE_COMPUTE_ERROR", "Unable to compute fees");
   }
 }
