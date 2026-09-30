@@ -694,6 +694,8 @@ export const feeRules = pgTable(
     percentBps: minor("percent_bps").notNull().default(sql`0`),
     minFeeMinor: minor("min_fee_minor").notNull().default(sql`0`),
     maxFeeMinor: minor("max_fee_minor").notNull().default(sql`0`),
+    amountMinorMin: bigint("amount_minor_min", { mode: "number" }),
+    amountMinorMax: bigint("amount_minor_max", { mode: "number" }),
     currency: varchar("currency", { length: 3 }).notNull().default("KES"),
     effectiveFrom: timestamp("effective_from", { withTimezone: true }),
     effectiveTo: timestamp("effective_to", { withTimezone: true }),
