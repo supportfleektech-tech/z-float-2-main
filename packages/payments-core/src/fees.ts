@@ -23,7 +23,7 @@ export interface FeeResult {
   currency: "KES";
 }
 
-export async function findFeeRule(db: Db, ctx: FeeContext) {
+export async function findFeeRule(db: Db, amountMinor: bigint, ctx: FeeContext) {
   const now = new Date();
   const rows = await db
     .select()
@@ -40,16 +40,30 @@ export async function findFeeRule(db: Db, ctx: FeeContext) {
         ),
         or(isNull(schema.feeRules.effectiveTo), gte(schema.feeRules.effectiveTo, now)),
         or(eq(schema.feeRules.tenantId, ctx.tenantId), isNull(schema.feeRules.tenantId)),
+        or(
+          isNull(schema.feeRules.amountMinorMin),
+          lte(schema.feeRules.amountMinorMin, amountMinor),
+        ),
+        or(
+          isNull(schema.feeRules.amountMinorMax),
+          gte(schema.feeRules.amountMinorMax, amountMinor),
+        ),
       ),
     )
     .orderBy(schema.feeRules.createdAt)
     .limit(1);
-  return rows[0] ?? null;
+
+  const filtered = rows.filter(
+    (row) =>
+      (row.amountMinorMin === null || row.amountMinorMin <= amountMinor) &&
+      (row.amountMinorMax === null || row.amountMinorMax >= amountMinor),
+  );
+  return filtered[0] ?? null;
 }
 
 /** Compute the fee for an amount using the first matching active rule. */
 export async function computeFee(db: Db, amountMinor: bigint, ctx: FeeContext): Promise<FeeResult> {
-  const rule = await findFeeRule(db, ctx);
+  const rule = await findFeeRule(db, amountMinor, ctx);
   if (!rule) {
     return {
       feeMinor: 0n,
