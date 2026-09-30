@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const { db } = getDb();
   const limit = Number(request.nextUrl.searchParams.get("limit") ?? 50);
   const status = request.nextUrl.searchParams.get("status");
+  const beneficiaryId = request.nextUrl.searchParams.get("beneficiaryId");
 
   const rows = await db
     .select({
@@ -26,7 +27,13 @@ export async function GET(request: NextRequest) {
       createdAt: schema.payments.createdAt,
     })
     .from(schema.payments)
-    .where(and(eq(schema.payments.tenantId, user!.tenantId!), ...(status ? [eq(schema.payments.status, status)] : [])))
+    .where(
+      and(
+        eq(schema.payments.tenantId, user!.tenantId!),
+        ...(status ? [eq(schema.payments.status, status)] : []),
+        ...(beneficiaryId ? [eq(schema.payments.beneficiaryId, beneficiaryId)] : []),
+      ),
+    )
     .orderBy(desc(schema.payments.createdAt))
     .limit(Math.min(limit, 200));
 

@@ -33,9 +33,12 @@ export interface RegisterBeneficiaryInput {
   email?: string;
   bankAccountName?: string;
   bankAccountNumber?: string;
+  bankName?: string;
   bankCode?: string;
   tillNumber?: string;
+  tillName?: string;
   paybillNumber?: string;
+  paybillName?: string;
   paybillAccount?: string;
   notes?: string;
   /** Identity — validated/normalised by the caller (see @zfloat/validation normalizeIdentity). */
@@ -61,9 +64,12 @@ export async function registerBeneficiary(
         email: input.email,
         bankAccountName: input.bankAccountName,
         bankAccountNumber: input.bankAccountNumber,
+        bankName: input.bankName,
         bankCode: input.bankCode,
         tillNumber: input.tillNumber,
+        tillName: input.tillName,
         paybillNumber: input.paybillNumber,
+        paybillName: input.paybillName,
         paybillAccount: input.paybillAccount,
         notes: input.notes,
         idType: input.idType ?? null,

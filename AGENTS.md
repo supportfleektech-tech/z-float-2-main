@@ -26,19 +26,33 @@ pnpm dev:relay         # optional: standalone outbox relay (lease-arbitrated sca
 pnpm ci:local          # lint → typecheck → test:unit → test:integration → web build
 ```
 
+**Gate prerequisites** (all learned the hard way — the gate fails without them):
+```bash
+source .env                                 # export DATABASE_URL_TEST etc. first
+pnpm -r --filter './packages/*' --filter './services/*' build   # kyc tests resolve payments-core dist
+pnpm --filter @zfloat/database db:migrate:test                  # empty zfloat_test → `relation does not exist`
+DATABASE_URL=$DATABASE_URL_TEST pnpm --filter @zfloat/database db:seed
+export TZ=UTC MINIO_BIN=/path/to/minio     # cron-parser is TZ-sensitive; storage tests spawn real MinIO
+```
+- **E2E needs the worker running** (`pnpm dev:worker`): approvals, webhook DLQ, alerts, and scan specs stall with it down.
+- **E2E runtime env**: `DEMO_MODE=true` (specs rely on demo policy + invite bridge; build still needs `false`), and web ↔ worker must share one `ENCRYPTION_KEY` (mismatch → `Unsupported state or unable to authenticate data` on webhook/crypto jobs).
+- **E2E pollutes the dev DB** (specs create policies; newest policy version wins the approval gate). For a clean full run: stop worker → `pnpm db:reset` → restart worker → run suite.
+
 ## Test Strategy
 
 | Suite | Command | DB Required | Notes |
 |-------|---------|-------------|-------|
 | Unit | `pnpm test:unit` | `DATABASE_URL_TEST` | 14 packages, sequential, 1-2 min |
 | Integration | `pnpm test:integration` | `DATABASE_URL_TEST` | 5 packages, sequential, truncates test DB |
-| E2E | `pnpm test:e2e` | running web + seeded DB | Playwright, 25 specs, ~3 min |
+| E2E | `pnpm test:e2e` | worker + seeded dev DB | Playwright, 34 tests / 12 files, ~4–18 min |
 
 **Never run `pnpm -r test`** — integration suites share `zfloat_test` DB and must run sequentially (`--workspace-concurrency=1`).
+**E2E spawns its own prod server** (`next start`, `reuseExistingServer: false`) — free `:3000` first or it fails to bind.
 
 ## Environment Gotchas
 
 - **`.env` location matters**: root `.env` + `apps/web/.env` both read. Web needs its own copy for Next.js.
+- **`.env` ports are authoritative**: other projects may hold 5432/6379 — check `ss -tln` and match `DATABASE_URL`/`REDIS_URL` to what's actually listening, not the compose defaults.
 - **Production build requires RB-10 env**:
   ```bash
   NODE_ENV=production DEMO_MODE=false SEED_DEMO_DATA=false \
@@ -93,6 +107,10 @@ PostgreSQL (Drizzle)       outbox_events table
 | Mock provider signature fails | Set `MOCK_PROVIDER_SECRET` in env (default `mock-provider-dev-secret`) |
 | Outbox relay contention | Multiple deployments need unique `OUTBOX_RELAY_LEASE_KEY` |
 | Circuit breaker open | Check provider health; `getAllCircuitBreakerStates()` for monitoring |
+| `originalFactory is undefined` / valid routes 404ing | Two `next dev` servers sharing one `.next` — kill extras (by PID; `pkill -f` can match your own shell), keep exactly one, `rm -rf apps/web/.next`, restart |
+| `db:seed` fails `Row is not executable (PENDING)` | Worker was alive during seed and stole batch rows — stop worker first (RB-01), then `db:reset` |
+| E2E approvals stuck / invites never arrive | Worker down, `DEMO_MODE=false` at runtime, or stale `E2E Policy` rows from a prior run — reset DB, `DEMO_MODE=true`, rerun |
+| `TypeError: Cannot convert undefined to a BigInt` blank page | Never raw `BigInt(apiField)` in tsx — use `formatKES`/`formatKESExact` from `@/lib/money`, `minorOrZero` from `@zfloat/money` |
 
 ## Demo Credentials (seed only)
 

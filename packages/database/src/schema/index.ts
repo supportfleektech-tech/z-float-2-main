@@ -252,9 +252,12 @@ export const beneficiaries = pgTable(
     email: varchar("email", { length: 254 }),
     bankAccountName: varchar("bank_account_name", { length: 200 }),
     bankAccountNumber: varchar("bank_account_number", { length: 40 }),
+    bankName: varchar("bank_name", { length: 200 }),
     bankCode: varchar("bank_code", { length: 20 }),
     tillNumber: varchar("till_number", { length: 12 }),
+    tillName: varchar("till_name", { length: 200 }),
     paybillNumber: varchar("paybill_number", { length: 12 }),
+    paybillName: varchar("paybill_name", { length: 200 }),
     paybillAccount: varchar("paybill_account", { length: 40 }),
     /** Identity (migration 019): NATIONAL_ID | ALIEN_ID | PASSPORT | MILITARY_ID | COMPANY_REG. */
     idType: varchar("id_type", { length: 20 }),
