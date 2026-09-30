@@ -756,8 +756,23 @@ export const charges = pgTable("charges", {
   invoiceId: uuid("invoice_id").references(() => invoices.id),
   description: varchar("description", { length: 300 }).notNull(),
   amountMinor: minor("amount_minor").notNull(),
+  category: varchar("category", { length: 80 }).notNull().default("General"),
+  ledgerId: uuid("ledger_id").references(() => expenseLedgers.id),
+  receiptFileId: uuid("receipt_file_id").references(() => fileObjects.id),
   createdAt: createdAt(),
 });
+
+export const expenseLedgers = pgTable(
+  "expense_ledgers",
+  {
+    id: id(),
+    tenantId: tenantId().notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    description: text("description"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("expense_ledgers_tenant_name_uidx").on(t.tenantId, t.name)],
+);
 
 /* ------------------------------------------------------------------ */
 /* Approvals                                                           */

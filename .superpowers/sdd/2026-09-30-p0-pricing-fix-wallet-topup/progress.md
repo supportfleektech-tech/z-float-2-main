@@ -38,6 +38,7 @@ Task 10: complete (8/8 tests pass: 6 fee unit + 2 wallet top-up integration)
 ## P1 Progress
 
 P1-1: complete (commit 532f34d) — bulk upload accepts Openfloat CSV template columns
+P1-2: complete (commit 72a506c) — supplier bank/paybill/till details + statements
 
 ---
 
