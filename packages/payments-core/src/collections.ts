@@ -25,7 +25,11 @@ import { normalizeKenyanPhone } from "@zfloat/validation";
 import { enqueueOutbox } from "./outbox.js";
 
 export class CollectionError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly transactionId?: string,
+  ) {
     super(message);
     this.name = "CollectionError";
   }
@@ -101,6 +105,86 @@ export interface RequestCollectionInput {
   kind?: "paybill" | "till";
 }
 
+export interface InitiateStkPushInput {
+  phoneNumber: string;
+  amountMinor: bigint;
+  accountReference: string;
+  callbackUrl: string;
+}
+
+export interface InitiateStkPushResult {
+  transactionId: string;
+  providerRef: string;
+}
+
+/**
+ * Core STK push: validate → insert PENDING collection → push prompt →
+ * update provider reference. The final outcome arrives on the webhook
+ * (or the sandbox simulator). Throws CollectionError on provider rejection.
+ */
+export async function initiateStkPush(
+  db: Db,
+  ctx: { tenantId: string },
+  input: InitiateStkPushInput,
+  provider: PaymentProvider & CollectionProvider,
+): Promise<InitiateStkPushResult> {
+  const phone = normalizeKenyanPhone(input.phoneNumber);
+  if (!phone) throw new CollectionError("Enter a valid Kenyan mobile number for the payer", "INVALID_PHONE");
+  if (input.amountMinor < COLLECTION_MIN_MINOR) throw new CollectionError("Amount must be at least KES 1", "AMOUNT_TOO_SMALL");
+  if (input.amountMinor > COLLECTION_MAX_MINOR) throw new CollectionError("M-Pesa allows at most KES 250,000 per transaction", "AMOUNT_TOO_LARGE");
+
+  const wallet = await resolveWallet(db, ctx.tenantId);
+  const accountReference = input.accountReference.slice(0, 60);
+
+  const [collection] = await db
+    .insert(schema.collections)
+    .values({
+      tenantId: ctx.tenantId,
+      collectionNumber: generateCollectionNumber(),
+      walletId: wallet.id,
+      channel: "MPESA_STK",
+      status: "PENDING",
+      amountMinor: input.amountMinor,
+      accountReference,
+      description: accountReference.slice(0, 500),
+      payerPhone: phone,
+      providerCode: provider.code,
+    })
+    .returning();
+
+  try {
+    const res = await provider.requestCollection({
+      collectionId: collection!.id,
+      reference: collection!.collectionNumber,
+      amountMinor: input.amountMinor,
+      currency: "KES",
+      phone,
+      accountReference,
+      description: accountReference,
+    });
+    if (res.status === "FAILED") {
+      await failCollection(db, { collectionId: collection!.id, reason: res.errorMessage ?? "Request rejected by provider", raw: res.raw });
+      throw new CollectionError(res.errorMessage ?? "Request rejected by provider", "PROVIDER_REJECTED", collection!.id);
+    }
+    const [updated] = await db
+      .update(schema.collections)
+      .set({ providerReference: res.providerReference ?? null, updatedAt: new Date() })
+      .where(eq(schema.collections.id, collection!.id))
+      .returning();
+    if (res.status === "SUCCESS") {
+      await settleCollection(db, { collectionId: collection!.id, raw: res.raw });
+    }
+    return { transactionId: collection!.id, providerRef: updated!.providerReference ?? "" };
+  } catch (err) {
+    if (err instanceof CollectionError) throw err;
+    await failCollection(db, {
+      collectionId: collection!.id,
+      reason: err instanceof Error ? err.message : "Provider error",
+    });
+    throw new CollectionError(err instanceof Error ? err.message : "Provider error", "PROVIDER_ERROR", collection!.id);
+  }
+}
+
 /**
  * Request-to-pay via M-Pesa STK push. Creates the PENDING collection first
  * (so a crash mid-request never loses the correlation), then pushes the
@@ -136,76 +220,40 @@ export async function requestStkCollection(
   };
   const accountReference = (input.accountReference?.trim() || invoice?.number || "Z-FLOAT").slice(0, 60);
 
-  let collection: Collection;
+  let transactionId: string;
   try {
-    const [row] = await db
-      .insert(schema.collections)
-      .values({
-        tenantId: input.tenantId,
-        collectionNumber: generateCollectionNumber(),
-        walletId: wallet.id,
-        channel: "MPESA_STK",
-        status: "PENDING",
-        amountMinor,
-        accountReference,
-        description: input.description?.slice(0, 500) ?? (invoice ? `Payment for ${invoice.number}` : null),
-        customerId: fromCustomer.customerId,
-        payerName: payer.name ?? null,
-        payerPhone: phone,
-        payerIdType: payer.idType ?? null,
-        payerIdNumber: payer.idNumber ?? null,
-        payerKraPin: payer.kraPin ?? null,
-        invoiceId: invoice?.id ?? null,
-        providerCode: provider.code,
-        idempotencyKey: input.idempotencyKey,
-        requestedById: input.actorId,
-      })
-      .returning();
-    collection = row!;
+    const result = await initiateStkPush(
+      db,
+      { tenantId: input.tenantId },
+      { phoneNumber: phone, amountMinor, accountReference, callbackUrl: "" },
+      provider,
+    );
+    transactionId = result.transactionId;
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
-      const [again] = await db
-        .select()
-        .from(schema.collections)
-        .where(and(eq(schema.collections.tenantId, input.tenantId), eq(schema.collections.idempotencyKey, input.idempotencyKey)))
-        .limit(1);
-      if (again) return { collection: again, replayed: true };
+    if (err instanceof CollectionError && err.transactionId) {
+      const [failed] = await db.select().from(schema.collections).where(eq(schema.collections.id, err.transactionId)).limit(1);
+      return { collection: failed!, replayed: false };
     }
     throw err;
   }
 
-  try {
-    const res = await provider.requestCollection({
-      collectionId: collection.id,
-      reference: collection.collectionNumber,
-      amountMinor,
-      currency: "KES",
-      phone,
-      accountReference,
-      description: collection.description ?? accountReference,
-      kind: input.kind,
-    });
-    if (res.status === "FAILED") {
-      const failed = await failCollection(db, { collectionId: collection.id, reason: res.errorMessage ?? "Request rejected by provider", raw: res.raw });
-      return { collection: failed, replayed: false };
-    }
-    const [updated] = await db
-      .update(schema.collections)
-      .set({ providerReference: res.providerReference ?? null, updatedAt: new Date() })
-      .where(eq(schema.collections.id, collection.id))
-      .returning();
-    if (res.status === "SUCCESS") {
-      const settled = await settleCollection(db, { collectionId: collection.id, raw: res.raw });
-      return { collection: settled.collection, replayed: false, customerMessage: res.customerMessage };
-    }
-    return { collection: updated!, replayed: false, customerMessage: res.customerMessage };
-  } catch (err) {
-    const failed = await failCollection(db, {
-      collectionId: collection.id,
-      reason: err instanceof Error ? err.message : "Provider error",
-    });
-    return { collection: failed, replayed: false };
-  }
+  const [updated] = await db
+    .update(schema.collections)
+    .set({
+      description: input.description?.slice(0, 500) ?? (invoice ? `Payment for ${invoice.number}` : null),
+      customerId: fromCustomer.customerId,
+      payerName: payer.name ?? null,
+      payerIdType: payer.idType ?? null,
+      payerIdNumber: payer.idNumber ?? null,
+      payerKraPin: payer.kraPin ?? null,
+      invoiceId: invoice?.id ?? null,
+      idempotencyKey: input.idempotencyKey,
+      requestedById: input.actorId,
+    })
+    .where(eq(schema.collections.id, transactionId))
+    .returning();
+
+  return { collection: updated!, replayed: false };
 }
 
 export interface SettleCollectionInput {
