@@ -39,6 +39,8 @@ Task 10: complete (8/8 tests pass: 6 fee unit + 2 wallet top-up integration)
 
 P1-1: complete (commit 532f34d) — bulk upload accepts Openfloat CSV template columns
 P1-2: complete (commit 72a506c) — supplier bank/paybill/till details + statements
+P1-3: complete (commit 37728f1) — expense mgmt: receipt upload, categories, ledgers, CSV export
+P1-4: complete (commit 28b4c9c) — live bills/airtime via aggregator
 
 ---
 

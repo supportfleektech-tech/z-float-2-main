@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { resetConfig, getConfig } from "@zfloat/config";
 import { MockProvider, createProviderRegistry } from "../src/index.js";
 import { MpesaProviderAdapter } from "../src/index.js";
+import { BillerAggregatorProvider } from "../src/index.js";
 import type { ProviderPaymentInput } from "../src/index.js";
 
 function mockInput(overrides: Partial<ProviderPaymentInput> = {}): ProviderPaymentInput {
@@ -128,5 +129,81 @@ describe("MpesaProviderAdapter", () => {
     await expect(
       adapter.createPayment(mockInput({ destination: { channel: "bank", bankAccountNumber: "x", bankAccountName: "Y", bankCode: "01" } })),
     ).rejects.toThrow(/Unsupported M-Pesa channel/);
+  });
+});
+
+describe("BillerAggregatorProvider", () => {
+  it("is fail-closed without BILLER_API_BASE_URL", async () => {
+    const provider = new BillerAggregatorProvider();
+    await expect(provider.getBillers()).rejects.toThrow(/BILLER_API_BASE_URL/);
+  });
+
+  it("is fail-closed without BILLER_API_KEY", async () => {
+    resetConfig();
+    getConfig({
+      env: {
+        NODE_ENV: "test",
+        DATABASE_URL: "postgresql://localhost/x",
+        BILLER_API_BASE_URL: "https://aggregator.example.com",
+      },
+      lenient: true,
+    });
+    const provider = new BillerAggregatorProvider();
+    await expect(provider.getBillers()).rejects.toThrow(/BILLER_API_KEY/);
+  });
+
+  it("rejects payments when aggregator is not configured", async () => {
+    const provider = new BillerAggregatorProvider();
+    await expect(provider.createPayment(mockInput())).rejects.toThrow(/not configured/);
+  });
+
+  it("verifies webhooks with the correct API key", async () => {
+    resetConfig();
+    getConfig({
+      env: {
+        NODE_ENV: "test",
+        DATABASE_URL: "postgresql://localhost/x",
+        BILLER_API_BASE_URL: "https://aggregator.example.com",
+        BILLER_API_KEY: "test-key",
+      },
+      lenient: true,
+    });
+    const provider = new BillerAggregatorProvider();
+    const verified = await provider.verifyWebhook({
+      rawBody: JSON.stringify({ transactionId: "txn-1", status: "SUCCESS" }),
+      headers: { "x-biller-signature": "test-key" },
+    });
+    expect(verified.valid).toBe(true);
+    expect(verified.event?.providerReference).toBe("txn-1");
+  });
+
+  it("rejects webhooks with wrong signature", async () => {
+    resetConfig();
+    getConfig({
+      env: {
+        NODE_ENV: "test",
+        DATABASE_URL: "postgresql://localhost/x",
+        BILLER_API_BASE_URL: "https://aggregator.example.com",
+        BILLER_API_KEY: "test-key",
+      },
+      lenient: true,
+    });
+    const provider = new BillerAggregatorProvider();
+    const verified = await provider.verifyWebhook({
+      rawBody: JSON.stringify({ transactionId: "txn-1", status: "SUCCESS" }),
+      headers: { "x-biller-signature": "wrong-key" },
+    });
+    expect(verified.valid).toBe(false);
+  });
+
+  it("does not support reversals", async () => {
+    const provider = new BillerAggregatorProvider();
+    const result = await provider.reversePayment({
+      providerReference: "ref-001",
+      amountMinor: 5000n,
+      currency: "KES",
+      reason: "duplicate",
+    });
+    expect(result.status).toBe("FAILED");
   });
 });

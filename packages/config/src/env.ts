@@ -133,6 +133,9 @@ const envSchema = z.object({
   AIRTIME_API_BASE_URL: z.string().optional(),
   AIRTIME_API_KEY: z.string().optional(),
 
+  BILLER_API_BASE_URL: z.string().optional(),
+  BILLER_API_KEY: z.string().optional(),
+
   MOCK_PROVIDER_BEHAVIOUR: z.enum(["success", "pending", "random", "fail"]).default("success"),
   MOCK_PROVIDER_LATENCY_MS: z.coerce.number().default(300),
   /** Shared secret for mock provider webhook verification (dev/staging). Override in staging/prod. */

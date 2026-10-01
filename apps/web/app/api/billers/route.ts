@@ -4,15 +4,24 @@ import { requireUser, apiOk, apiError } from "@/lib/api";
 import { createPayment, submitPayment } from "@zfloat/payments-core";
 import { writeAuditEvent } from "@zfloat/audit";
 import { resolveApprovalRulesForSubmit } from "@/lib/approval-gate";
+import { BillerAggregatorProvider } from "@zfloat/providers";
 
 export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
   const { db } = getDb();
-  const billers = await db.select().from(schema.billers).where(eq(schema.billers.enabled, true)).orderBy(desc(schema.billers.createdAt)).limit(100);
-  return apiOk({
-    data: billers.map((b) => ({ ...b, amountMinor: null })),
-  });
+
+  const aggregator = new BillerAggregatorProvider();
+  try {
+    const liveBillers = await aggregator.getBillers();
+    return apiOk({ data: liveBillers, live: true });
+  } catch {
+    const billers = await db.select().from(schema.billers).where(eq(schema.billers.enabled, true)).orderBy(desc(schema.billers.createdAt)).limit(100);
+    return apiOk({
+      data: billers.map((b) => ({ ...b, amountMinor: null })),
+      live: false,
+    });
+  }
 }
 
 export async function POST(request: Request) {
@@ -40,7 +49,6 @@ export async function POST(request: Request) {
 
   let category = "utilities";
   if (billerId === "custom") {
-    // Custom biller
     const customName = String(b.customName ?? "");
     const customChannel = String(b.customChannel ?? "paybill");
     const customAccountNumber = String(b.customAccountNumber ?? "");
@@ -62,8 +70,15 @@ export async function POST(request: Request) {
       paybillAccount = accountRef || undefined;
     }
   } else {
-    // Predefined biller
-    const [biller] = await db.select().from(schema.billers).where(eq(schema.billers.id, billerId)).limit(1);
+    const aggregator = new BillerAggregatorProvider();
+    let biller: { id: string; code: string; name: string; category: string | null; channel: string; accountNumber: string } | undefined;
+    try {
+      const liveBillers = await aggregator.getBillers();
+      biller = liveBillers.find((x) => x.id === billerId || x.code === billerId);
+    } catch {
+      const [row] = await db.select().from(schema.billers).where(eq(schema.billers.id, billerId)).limit(1);
+      biller = row;
+    }
     if (!biller) return apiError(404, "NOT_FOUND", "Biller not found");
 
     channel = biller.channel === "till" ? "till" : "paybill";

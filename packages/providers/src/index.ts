@@ -1,6 +1,7 @@
 import { getConfig } from "@zfloat/config";
 import { AirtimeProviderAdapter } from "./airtime.js";
 import { BankProviderAdapter } from "./bank.js";
+import { BillerAggregatorProvider } from "./biller.js";
 import { MockProvider } from "./mock.js";
 import { MpesaProviderAdapter } from "./mpesa.js";
 import type { PaymentProvider } from "./types.js";
@@ -10,6 +11,7 @@ export { MockProvider, MockBehaviour } from "./mock.js";
 export { MpesaProviderAdapter, parseC2BConfirmation, parseStkCallbackMetadata, toDarajaMsisdn, darajaTimestamp } from "./mpesa.js";
 export { BankProviderAdapter } from "./bank.js";
 export { AirtimeProviderAdapter } from "./airtime.js";
+export { BillerAggregatorProvider } from "./biller.js";
 export * from "./circuit-breaker.js";
 
 export interface ProviderRegistry {
@@ -25,6 +27,7 @@ export function createProviderRegistry(overrides?: Record<string, PaymentProvide
     "mpesa-safaricom": new MpesaProviderAdapter(),
     "bank-psp": new BankProviderAdapter(),
     "airtime-aggregator": new AirtimeProviderAdapter(),
+    "biller-aggregator": new BillerAggregatorProvider(),
     ...overrides,
   };
   return {

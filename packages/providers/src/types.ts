@@ -4,7 +4,7 @@
  * they never import provider SDKs directly (instructions.md §7).
  */
 
-export type ProviderType = "mpesa" | "bank" | "airtime" | "sandbox";
+export type ProviderType = "mpesa" | "bank" | "airtime" | "biller" | "sandbox";
 export type ProviderEnvironment = "sandbox" | "production";
 
 /** How a provider outcome is interpreted. UNKNOWN means "in doubt — keep checking". */

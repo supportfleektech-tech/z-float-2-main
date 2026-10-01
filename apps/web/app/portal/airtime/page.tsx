@@ -31,6 +31,7 @@ interface AirtimeFormData {
 }
 export default function AirtimePage() {
   const [rows, setRows] = useState<AirtimeProduct[] | null>(null);
+  const [live, setLive] = useState(false);
   const [buying, setBuying] = useState<AirtimeFormData | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -38,7 +39,10 @@ export default function AirtimePage() {
   function load() {
     fetch("/api/airtime")
       .then((r) => r.json())
-      .then((d) => setRows(d.data ?? []))
+      .then((d) => {
+        setRows(d.data ?? []);
+        setLive(d.live ?? false);
+      })
       .catch(() => setRows([]));
   }
   useEffect(load, []);
@@ -86,6 +90,11 @@ export default function AirtimePage() {
         title="Airtime & data"
         subtitle="Top up staff and field teams across Safaricom, Airtel and Telkom."
       />
+      {live ? (
+        <p className="mb-4 rounded-control border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
+          Live catalog — connected to airtime aggregator
+        </p>
+      ) : null}
       {result ? (
         <p className="mb-4 rounded-control border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
           {result}

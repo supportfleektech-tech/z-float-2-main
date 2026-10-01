@@ -398,15 +398,20 @@ async function main() {
   await ensureSystemChart(db, tenantId);
 
   const branchNames = [
-    { name: "Nairobi HQ", code: "NBO" },
-    { name: "Mombasa Branch", code: "MBA" },
-    { name: "Kisumu Branch", code: "KSM" },
+    { name: "Nairobi HQ", code: "NBO", etimsBranchId: "00" },
+    { name: "Mombasa Branch", code: "MBA", etimsBranchId: "01" },
+    { name: "Kisumu Branch", code: "KSM", etimsBranchId: "02" },
   ];
   const branchIds: string[] = [];
   for (const b of branchNames) {
     const [branch] = await db
       .insert(schema.branches)
-      .values({ tenantId, name: b.name, code: b.code })
+      .values({
+        tenantId,
+        name: b.name,
+        code: b.code,
+        etimsBranchId: b.etimsBranchId,
+      })
       .returning();
     branchIds.push(branch!.id);
   }
@@ -419,25 +424,33 @@ async function main() {
       code: "OPS",
     });
 
-  const [wallet] = await db
-    .insert(schema.wallets)
-    .values({
+  // Create a wallet for each branch
+  const walletIds: string[] = [];
+  for (let i = 0; i < branchNames.length; i++) {
+    const [wallet] = await db
+      .insert(schema.wallets)
+      .values({
+        tenantId,
+        branchId: branchIds[i],
+        name: `${branchNames[i].name} Wallet`,
+        currency: "KES",
+      })
+      .returning();
+    walletIds.push(wallet!.id);
+  }
+  const walletId = walletIds[0]; // Default wallet for backwards compatibility
+  // Fund all wallets with initial balance
+  for (const wId of walletIds) {
+    await postFundingJournal(db, {
       tenantId,
-      branchId: branchIds[0],
-      name: "Main Operating Wallet",
-      currency: "KES",
-    })
-    .returning();
-  const walletId = wallet!.id;
-  await postFundingJournal(db, {
-    tenantId,
-    walletId,
-    amountMinor: KES("2500000.00"),
-  });
-  await db
-    .update(schema.wallets)
-    .set({ availableMinor: KES("2500000.00") })
-    .where(eq(schema.wallets.id, walletId));
+      walletId: wId,
+      amountMinor: KES("2500000.00"),
+    });
+    await db
+      .update(schema.wallets)
+      .set({ availableMinor: KES("2500000.00") })
+      .where(eq(schema.wallets.id, wId));
+  }
 
   // ---------------- demo users ----------------
   // eslint-disable-next-line no-console
@@ -705,6 +718,18 @@ async function main() {
     createdById: userIds["OWNER"]!,
   });
 
+  // Link branches to wallets, approval policy, and set default branch
+  for (let i = 0; i < branchNames.length; i++) {
+    await db
+      .update(schema.branches)
+      .set({
+        walletId: walletIds[i],
+        approvalPolicyId: policy!.id,
+        isDefault: i === 0, // Nairobi HQ is default
+      })
+      .where(eq(schema.branches.id, branchIds[i]));
+  }
+
   // ---------------- transactions: 50 total ----------------
   // eslint-disable-next-line no-console
   console.log("[seed] 50 transactions across states...");
@@ -724,13 +749,15 @@ async function main() {
       seq += 1;
       const amount = `${(500 + ((seq * 137) % 45000)) / 100}`; // between 5.00 and 455.00
       const recipient = recipientIds[seq % 25]!;
+      // Use wallet corresponding to seq to distribute across branches
+      const sourceWalletId = walletIds[seq % walletIds.length];
       try {
         const { payment } = await createPayment(db, {
           tenantId,
           actorId: userIds["MAKER"]!,
           amount,
           channel: "mpesa",
-          sourceWalletId: walletId,
+          sourceWalletId,
           recipient: {
             name: `Recipient ${seq}`,
             phone: `071${String(20000000 + seq * 7).slice(0, 8)}`,
@@ -1041,6 +1068,13 @@ async function main() {
       accountNumber: "888880",
     },
     {
+      code: "KRA-ESLIP",
+      name: "KRA eSlip",
+      category: "Government",
+      channel: "paybill",
+      accountNumber: "572572",
+    },
+    {
       code: "NWSC-PB",
       name: "Nairobi Water",
       category: "Utilities",
@@ -1055,18 +1089,46 @@ async function main() {
       accountNumber: "542542",
     },
     {
+      code: "FAIBA-PB",
+      name: "Faiba Internet",
+      category: "Telecom",
+      channel: "paybill",
+      accountNumber: "333333",
+    },
+    {
+      code: "DSTV-PB",
+      name: "DStv",
+      category: "Entertainment",
+      channel: "paybill",
+      accountNumber: "700000",
+    },
+    {
+      code: "GOTV-PB",
+      name: "GOtv",
+      category: "Entertainment",
+      channel: "paybill",
+      accountNumber: "700001",
+    },
+    {
+      code: "SHA-PB",
+      name: "SHA (Social Health Authority)",
+      category: "Government",
+      channel: "paybill",
+      accountNumber: "800000",
+    },
+    {
+      code: "NSSF-PB",
+      name: "NSSF",
+      category: "Government",
+      channel: "paybill",
+      accountNumber: "900000",
+    },
+    {
       code: "SAF-PB",
       name: "Safaricom Postpaid",
       category: "Telecom",
       channel: "paybill",
       accountNumber: "123456",
-    },
-    {
-      code: "KRA-PB",
-      name: "KRA (PAYE)",
-      category: "Government",
-      channel: "paybill",
-      accountNumber: "572572",
     },
   ];
   for (const b of billers) {

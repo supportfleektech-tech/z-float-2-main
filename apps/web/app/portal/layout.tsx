@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand";
 import { Spinner } from "@/components/ui";
 import NotificationBell from "@/components/notification-bell";
+import { BranchProvider, useBranch } from "@/app/portal/context/BranchContext";
 
 const NAV = [
   {
@@ -65,7 +66,7 @@ const NAV = [
   },
 ];
 
-export default function PortalLayout({
+function PortalLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -79,11 +80,10 @@ export default function PortalLayout({
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const { branches, selectedBranchId, selectedBranch, setSelectedBranchId } = useBranch();
 
   useEffect(() => {
     const ctrl = new AbortController();
-    // Cleanup (unmount / StrictMode double-invoke) aborts the request too —
-    // that must not be mistaken for "no session" and bounce the user to login.
     let disposed = false;
     const timer = setTimeout(() => ctrl.abort(), 8000);
     fetch("/api/auth/me", { signal: ctrl.signal })
@@ -204,9 +204,25 @@ export default function PortalLayout({
       {/* Main */}
       <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-borderline bg-white/90 px-4 backdrop-blur sm:px-6">
-          <p className="text-sm font-medium">
-            Acme Traders Ltd — Main Operating Wallet
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium">Acme Traders Ltd</p>
+            <div className="relative">
+              <select
+                value={selectedBranchId ?? ""}
+                onChange={(e) => setSelectedBranchId(e.target.value || null)}
+                className="focus-ring appearance-none bg-white border border-borderline rounded-control px-3 py-1.5 pr-8 text-sm text-ink"
+                aria-label="Select branch"
+              >
+                <option value="">Select branch…</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}{b.etimsBranchId ? ` (eTIMS ${b.etimsBranchId})` : ""}{b.isDefault ? " · Default" : ""}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">▼</span>
+            </div>
+          </div>
           <div className="flex items-center gap-3 text-xs text-muted">
             <NotificationBell />
             <span className="hidden sm:inline">Sandbox mode</span>
@@ -218,5 +234,17 @@ export default function PortalLayout({
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function PortalLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <BranchProvider>
+      <PortalLayoutContent children={children} />
+    </BranchProvider>
   );
 }

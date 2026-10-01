@@ -194,9 +194,23 @@ export const branches = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     code: varchar("code", { length: 30 }).notNull(),
     address: text("address"),
+    /** KRA eTIMS branch code: "00" = head office, "01".. = branches. */
+    etimsBranchId: varchar("etims_branch_id", { length: 2 }),
+    /** Wallet assigned to this branch (one-to-one). */
+    walletId: uuid("wallet_id"),
+    /** Approval policy specific to this branch. */
+    approvalPolicyId: uuid("approval_policy_id").references(() => approvalPolicies.id, { onDelete: "set null" }),
+    /** Default branch for the tenant (used when no branch is explicitly selected). */
+    isDefault: boolean("is_default").notNull().default(false),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("branches_tenant_code_uidx").on(t.tenantId, t.code), index("branches_tenant_idx").on(t.tenantId)],
+  (t) => [
+    uniqueIndex("branches_tenant_code_uidx").on(t.tenantId, t.code),
+    uniqueIndex("branches_tenant_default_uidx").on(t.tenantId).where(sql`${t.isDefault} = true`),
+    index("branches_tenant_idx").on(t.tenantId),
+    index("branches_tenant_etims_idx").on(t.tenantId, t.etimsBranchId),
+  ],
 );
 
 export const departments = pgTable(
@@ -238,7 +252,7 @@ export const wallets = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("wallets_tenant_idx").on(t.tenantId)],
+  (t) => [index("wallets_tenant_idx").on(t.tenantId), index("wallets_branch_idx").on(t.branchId)],
 );
 
 export const beneficiaries = pgTable(
