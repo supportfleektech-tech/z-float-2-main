@@ -19,3 +19,9 @@ scripts/tools/minio
 .vercel
 .env*
 !.env.example
+
+# Capacitor
+apps/web/ios/
+apps/web/android/
+apps/web/capacitor.config.json
+apps/web/capacitor.plugins.json
