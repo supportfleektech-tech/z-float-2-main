@@ -21,7 +21,7 @@
 import { eq, sql } from "drizzle-orm";
 import { schema, type Db } from "@zfloat/database";
 import { enqueue } from "@zfloat/queue";
-import { queueNotification } from "@zfloat/notifications";
+import { queueNotification, sendPaymentConfirmation, getUserContact } from "@zfloat/notifications";
 import { markBatchRowOutcome, refreshBatchStatus } from "./bulk.js";
 import { fanoutWebhookDeliveries } from "./outbound.js";
 import { markFailed, markPublished, pullUnpublished } from "./outbox.js";
@@ -132,6 +132,38 @@ export async function handleOutboxEvent(db: Db, event: OutboxEventRef): Promise<
               .where(eq(schema.payments.id, paymentId))
               .limit(1);
             if (payment?.batchId) await refreshBatchStatus(db, payment.batchId);
+          }
+
+          // Fetch full payment details for email/SMS notifications
+          const [payment] = await db
+            .select()
+            .from(schema.payments)
+            .where(eq(schema.payments.id, paymentId))
+            .limit(1);
+
+          if (payment) {
+            const beneficiary = (payment.beneficiarySnapshot ?? {}) as Record<string, unknown>;
+            const payerContact = payment.createdById ? await getUserContact(db, payment.createdById) : { email: undefined, phone: undefined, name: undefined };
+
+            // Send EMAIL and SMS to both payer and recipient
+            await sendPaymentConfirmation(db, {
+              paymentNumber: payment.paymentNumber,
+              amountMinor: payment.amountMinor,
+              currency: payment.currency,
+              recipientName: String(beneficiary.name ?? "Unknown"),
+              recipientPhone: beneficiary.phone as string | undefined,
+              recipientEmail: beneficiary.email as string | undefined,
+              providerReference: payment.providerReference ?? undefined,
+              channel: payment.channel,
+              status: event.eventType === "payment.succeeded" ? "SUCCESS" : event.eventType === "payment.reversed" ? "REVERSED" : "FAILED",
+              errorCode: payload.errorCode as string | undefined,
+              errorMessage: payload.errorMessage as string | undefined,
+              payerId: payment.createdById ?? undefined,
+              payerEmail: payerContact.email,
+              payerPhone: payerContact.phone,
+              payerName: payerContact.name,
+              tenantId: event.tenantId ?? undefined,
+            });
           }
         }
       }

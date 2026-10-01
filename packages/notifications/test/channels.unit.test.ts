@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDb, schema, eq } from "@zfloat/database";
-import { normalizeKenyanPhone, queueNotification, dispatchNotification } from "../src/index.js";
+import { normalizeKenyanPhone, queueNotification, dispatchNotification, sendPaymentConfirmation, getUserContact } from "../src/index.js";
 import { resetConfig } from "@zfloat/config";
 
 function setEnv(overrides: Record<string, string>) {
@@ -182,5 +182,191 @@ describe("channel drivers (EMAIL_DRIVER=sink / SMS_DRIVER=http against mock)", (
     await expect(dispatchNotification(db, id)).rejects.toThrow();
     const [row] = await db.select().from(schema.notifications).where(eq(schema.notifications.id, id));
     expect(row!.status).toBe("FAILED");
+  });
+});
+
+describe("sendPaymentConfirmation", () => {
+  let RECIPIENT_USER: string;
+  let RECIPIENT_EMAIL: string;
+  let RECIPIENT_PHONE: string;
+
+  beforeEach(async () => {
+    await pool.query(`TRUNCATE notifications, users, tenants CASCADE`);
+    const [tenant] = await db
+      .insert(schema.tenants)
+      .values({ name: "Notif Test Co", slug: `nt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, status: "ACTIVE" })
+      .returning({ id: schema.tenants.id });
+    TENANT = tenant!.id;
+
+    const [payer] = await db
+      .insert(schema.users)
+      .values({
+        tenantId: TENANT,
+        email: "payer@test.co.ke",
+        phone: "0712000111",
+        fullName: "Payer User",
+        status: "ACTIVE",
+      })
+      .returning({ id: schema.users.id });
+    USER_ID = payer!.id;
+
+    const [recipient] = await db
+      .insert(schema.users)
+      .values({
+        tenantId: TENANT,
+        email: "recipient@test.co.ke",
+        phone: "0723456789",
+        fullName: "Recipient User",
+        status: "ACTIVE",
+      })
+      .returning({ id: schema.users.id });
+    RECIPIENT_USER = recipient!.id;
+    RECIPIENT_EMAIL = "recipient@test.co.ke";
+    RECIPIENT_PHONE = "0723456789";
+  });
+
+  it("queues EMAIL and SMS for both payer and recipient on SUCCESS", async () => {
+    setEnv({ EMAIL_DRIVER: "sink", SMTP_SINK_DIR: sinkDir, SMS_DRIVER: "console" });
+
+    await sendPaymentConfirmation(db, {
+      paymentNumber: "ZF-2024-ABCD-1234",
+      amountMinor: 100000,
+      currency: "KES",
+      recipientName: "John Doe",
+      recipientPhone: RECIPIENT_PHONE,
+      recipientEmail: RECIPIENT_EMAIL,
+      providerReference: "MP123456",
+      channel: "mpesa",
+      status: "SUCCESS",
+      payerId: USER_ID,
+      payerEmail: "payer@test.co.ke",
+      payerPhone: "0712000111",
+      payerName: "Payer User",
+      tenantId: TENANT,
+    });
+
+    // Check payer EMAIL
+    const payerEmails = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "EMAIL"));
+    expect(payerEmails.length).toBeGreaterThanOrEqual(2); // payer + recipient emails
+    const payerEmail = payerEmails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "payer");
+    expect(payerEmail).toBeTruthy();
+    expect(payerEmail!.title).toBe("Payment Successful");
+    expect(payerEmail!.data?.to).toBe("payer@test.co.ke");
+
+    // Check recipient EMAIL
+    const recipientEmail = payerEmails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "recipient");
+    expect(recipientEmail).toBeTruthy();
+    expect(recipientEmail!.title).toBe("Payment Received");
+    expect(recipientEmail!.data?.to).toBe(RECIPIENT_EMAIL);
+
+    // Check SMS notifications
+    const smsRows = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "SMS"));
+    expect(smsRows.length).toBe(2); // payer + recipient SMS
+    const payerSms = smsRows.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "payer");
+    const recipientSms = smsRows.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "recipient");
+    expect(payerSms).toBeTruthy();
+    expect(recipientSms).toBeTruthy();
+    expect(payerSms!.body).toContain("1,000.00");
+    expect(recipientSms!.body).toContain("1,000.00");
+  });
+
+  it("queues notifications for FAILED status with error details", async () => {
+    setEnv({ EMAIL_DRIVER: "sink", SMTP_SINK_DIR: sinkDir, SMS_DRIVER: "console" });
+
+    await sendPaymentConfirmation(db, {
+      paymentNumber: "ZF-2024-ABCD-5678",
+      amountMinor: 50000,
+      currency: "KES",
+      recipientName: "Jane Smith",
+      recipientPhone: RECIPIENT_PHONE,
+      recipientEmail: RECIPIENT_EMAIL,
+      channel: "mpesa",
+      status: "FAILED",
+      errorCode: "INSUFFICIENT_FUNDS",
+      errorMessage: "Wallet balance too low",
+      payerId: USER_ID,
+      payerEmail: "payer@test.co.ke",
+      payerPhone: "0712000111",
+      payerName: "Payer User",
+      tenantId: TENANT,
+    });
+
+    const emails = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "EMAIL"));
+    const payerEmail = emails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "payer");
+    expect(payerEmail).toBeTruthy();
+    expect(payerEmail!.title).toBe("Payment Failed");
+    expect(payerEmail!.body).toContain("INSUFFICIENT_FUNDS");
+    expect(payerEmail!.body).toContain("Wallet balance too low");
+
+    const recipientEmail = emails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "recipient");
+    expect(recipientEmail).toBeTruthy();
+    expect(recipientEmail!.title).toBe("Payment Failed");
+  });
+
+  it("queues notifications for REVERSED status", async () => {
+    setEnv({ EMAIL_DRIVER: "sink", SMTP_SINK_DIR: sinkDir, SMS_DRIVER: "console" });
+
+    await sendPaymentConfirmation(db, {
+      paymentNumber: "ZF-2024-ABCD-9999",
+      amountMinor: 20000,
+      currency: "KES",
+      recipientName: "Bob Wilson",
+      recipientPhone: RECIPIENT_PHONE,
+      recipientEmail: RECIPIENT_EMAIL,
+      channel: "mpesa",
+      status: "REVERSED",
+      payerId: USER_ID,
+      payerEmail: "payer@test.co.ke",
+      payerPhone: "0712000111",
+      payerName: "Payer User",
+      tenantId: TENANT,
+    });
+
+    const emails = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "EMAIL"));
+    const payerEmail = emails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "payer");
+    expect(payerEmail).toBeTruthy();
+    expect(payerEmail!.title).toBe("Payment Reversed");
+    expect(payerEmail!.body).toContain("reversed");
+
+    const recipientEmail = emails.find((n) => n.data && (n.data as Record<string, unknown>).recipientType === "recipient");
+    expect(recipientEmail).toBeTruthy();
+    expect(recipientEmail!.title).toBe("Payment Reversed");
+  });
+
+  it("handles missing recipient contact gracefully", async () => {
+    setEnv({ EMAIL_DRIVER: "sink", SMTP_SINK_DIR: sinkDir, SMS_DRIVER: "console" });
+
+    // Only payer has contact info, recipient has none
+    await sendPaymentConfirmation(db, {
+      paymentNumber: "ZF-2024-ABCD-0000",
+      amountMinor: 10000,
+      currency: "KES",
+      recipientName: "Unknown Person",
+      recipientPhone: undefined,
+      recipientEmail: undefined,
+      channel: "mpesa",
+      status: "SUCCESS",
+      payerId: USER_ID,
+      payerEmail: "payer@test.co.ke",
+      payerPhone: "0712000111",
+      payerName: "Payer User",
+      tenantId: TENANT,
+    });
+
+    const emails = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "EMAIL"));
+    const smsRows = await db.select().from(schema.notifications).where(eq(schema.notifications.channel, "SMS"));
+
+    // Should only have payer notifications (1 email, 1 sms)
+    expect(emails.length).toBe(1);
+    expect(smsRows.length).toBe(1);
+    const payerEmail = emails[0];
+    expect(payerEmail.data?.recipientType).toBe("payer");
+  });
+
+  it("getUserContact returns user contact info", async () => {
+    const contact = await getUserContact(db, USER_ID);
+    expect(contact.email).toBe("payer@test.co.ke");
+    expect(contact.phone).toBe("0712000111");
+    expect(contact.name).toBe("Payer User");
   });
 });

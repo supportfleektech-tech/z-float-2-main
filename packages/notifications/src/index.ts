@@ -193,6 +193,137 @@ export function normalizeKenyanPhone(raw: string): string | null {
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Payment confirmation helpers                                        */
+/* ------------------------------------------------------------------ */
+
+export interface PaymentDetails {
+  paymentNumber: string;
+  amountMinor: number | string | bigint;
+  currency: string;
+  recipientName: string;
+  recipientPhone?: string;
+  recipientEmail?: string;
+  providerReference?: string;
+  channel: string;
+  status: "SUCCESS" | "FAILED" | "REVERSED";
+  errorCode?: string;
+  errorMessage?: string;
+  payerId?: string;
+  payerEmail?: string;
+  payerPhone?: string;
+  payerName?: string;
+  tenantId?: string;
+}
+
+function formatAmount(amountMinor: number | string | bigint, currency = "KES"): string {
+  const minor = typeof amountMinor === "bigint" ? amountMinor : BigInt(amountMinor);
+  const major = Number(minor / 100n);
+  return new Intl.NumberFormat("en-KE", { style: "currency", currency, minimumFractionDigits: 2 }).format(major);
+}
+
+function formatDate(date: Date = new Date()): string {
+  return date.toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+}
+
+export async function getUserContact(db: Db, userId: string): Promise<{ email?: string; phone?: string; name?: string }> {
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
+  return {
+    email: user?.email,
+    phone: user?.phone ?? undefined,
+    name: user?.fullName,
+  };
+}
+
+/** Send payment confirmation (success/failed/reversed) to both payer and recipient via EMAIL and SMS. */
+export async function sendPaymentConfirmation(db: Db, details: PaymentDetails): Promise<void> {
+  const amountFormatted = formatAmount(details.amountMinor, details.currency);
+  const isSuccess = details.status === "SUCCESS";
+  const isReversed = details.status === "REVERSED";
+
+  // Build notification content
+  const successTitle = isSuccess
+    ? "Payment Successful"
+    : isReversed
+    ? "Payment Reversed"
+    : "Payment Failed";
+
+  const successBody = isSuccess
+    ? `Your payment of ${amountFormatted} to ${details.recipientName} has been completed successfully.`
+    : isReversed
+    ? `Your payment of ${amountFormatted} to ${details.recipientName} has been reversed.`
+    : `Your payment of ${amountFormatted} to ${details.recipientName} has failed.`;
+
+  const recipientTitle = isSuccess
+    ? "Payment Received"
+    : isReversed
+    ? "Payment Reversed"
+    : "Payment Failed";
+
+  const recipientBody = isSuccess
+    ? `You have received ${amountFormatted} from ${details.payerName ?? "a payment"}.`
+    : isReversed
+    ? `A payment of ${amountFormatted} from ${details.payerName ?? "a payer"} has been reversed.`
+    : `A payment of ${amountFormatted} from ${details.payerName ?? "a payer"} has failed.`;
+
+  const commonData = {
+    paymentNumber: details.paymentNumber,
+    amount: amountFormatted,
+    currency: details.currency,
+    recipientName: details.recipientName,
+    providerReference: details.providerReference,
+    channel: details.channel,
+    status: details.status,
+    timestamp: formatDate(),
+    errorCode: details.errorCode,
+    errorMessage: details.errorMessage,
+  };
+
+  // 1. Send to PAYER (createdById / payerId) - EMAIL
+  if (details.payerEmail) {
+    await queueNotification(db, {
+      tenantId: details.tenantId,
+      channel: "EMAIL",
+      title: successTitle,
+      body: `${successBody}\n\nPayment Details:\n- Payment Number: ${details.paymentNumber}\n- Amount: ${amountFormatted}\n- Recipient: ${details.recipientName}\n- Channel: ${details.channel}\n- Provider Reference: ${details.providerReference ?? "N/A"}\n- Date: ${formatDate()}${details.errorCode ? `\n- Error: ${details.errorCode} (${details.errorMessage})` : ""}`,
+      data: { ...commonData, to: details.payerEmail, recipientType: "payer" },
+    });
+  }
+
+  // 2. Send to PAYER - SMS
+  if (details.payerPhone) {
+    const smsBody = `${successTitle}: ${amountFormatted} ${isSuccess ? "sent to" : isReversed ? "reversed for" : "failed for"} ${details.recipientName}. Ref: ${details.paymentNumber}. ${details.errorCode ? `Error: ${details.errorCode}` : ""}`;
+    await queueNotification(db, {
+      tenantId: details.tenantId,
+      channel: "SMS",
+      body: smsBody,
+      data: { ...commonData, phone: details.payerPhone, recipientType: "payer" },
+    });
+  }
+
+  // 3. Send to RECIPIENT - EMAIL (if email available in beneficiary snapshot)
+  if (details.recipientEmail) {
+    await queueNotification(db, {
+      tenantId: details.tenantId,
+      channel: "EMAIL",
+      title: recipientTitle,
+      body: `${recipientBody}\n\nPayment Details:\n- Payment Number: ${details.paymentNumber}\n- Amount: ${amountFormatted}\n- Payer: ${details.payerName ?? "Unknown"}\n- Channel: ${details.channel}\n- Provider Reference: ${details.providerReference ?? "N/A"}\n- Date: ${formatDate()}${details.errorCode ? `\n- Error: ${details.errorCode} (${details.errorMessage})` : ""}`,
+      data: { ...commonData, to: details.recipientEmail, recipientType: "recipient" },
+    });
+  }
+
+  // 4. Send to RECIPIENT - SMS (if phone available in beneficiary snapshot)
+  if (details.recipientPhone) {
+    const smsBody = `${recipientTitle}: ${amountFormatted} ${isSuccess ? "received from" : isReversed ? "reversed from" : "failed from"} ${details.payerName ?? "a payer"}. Ref: ${details.paymentNumber}. ${details.errorCode ? `Error: ${details.errorCode}` : ""}`;
+    await queueNotification(db, {
+      tenantId: details.tenantId,
+      channel: "SMS",
+      body: smsBody,
+      data: { ...commonData, phone: details.recipientPhone, recipientType: "recipient" },
+    });
+  }
+}
+
 /** Returns the driver id actually used. */
 async function sendSms(phone: string, message: string): Promise<string> {
   const config = getConfig();
