@@ -20,6 +20,8 @@ interface Biller {
   category: string | null;
   channel: string;
   accountNumber: string;
+  requiresValidation?: boolean;
+  logoUrl?: string;
 }
 interface BillerFormData {
   billerId: string | "custom";
@@ -30,22 +32,37 @@ interface BillerFormData {
   customAccountNumber?: string;
   customCategory?: string;
 }
+interface ValidationResult {
+  valid: boolean;
+  accountName?: string;
+  errorMessage?: string;
+}
 export default function BillsPage() {
   const [billers, setBillers] = useState<Biller[] | null>(null);
+  const [live, setLive] = useState(false);
   const [paying, setPaying] = useState<BillerFormData | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
   function load() {
     fetch("/api/billers")
       .then((r) => r.json())
-      .then((d) => setBillers(d.data ?? []))
+      .then((d) => {
+        setBillers(d.data ?? []);
+        setLive(d.live ?? false);
+      })
       .catch(() => setBillers([]));
   }
   useEffect(load, []);
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     if (!paying) return;
+    if (paying.billerId !== "custom" && validation && !validation.valid) {
+      setError("Account reference is invalid. Please correct it before paying.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
@@ -74,6 +91,7 @@ export default function BillsPage() {
       : `Bill ${data.data.paymentNumber}`;
     setResult(`${desc} → ${data.data.status}`);
     setPaying(null);
+    setValidation(null);
   }
   function openPay(b: Biller | "custom") {
     if (b === "custom") {
@@ -81,13 +99,45 @@ export default function BillsPage() {
     } else {
       setPaying({ billerId: b.id, accountRef: "", amount: "", customName: b.name, customChannel: b.channel, customAccountNumber: b.accountNumber, customCategory: b.category ?? "Utilities" });
     }
+    setValidation(null);
+    setError(null);
+  }
+
+  async function validateAccount(billerCode: string, accountRef: string) {
+    if (!accountRef.trim()) {
+      setValidation(null);
+      return;
+    }
+    setValidating(true);
+    try {
+      const res = await fetch("/api/billers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billerId: billerCode, accountRef }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setValidation(data.data);
+      } else {
+        setValidation({ valid: false, errorMessage: data.error?.message ?? "Validation failed" });
+      }
+    } catch {
+      setValidation({ valid: false, errorMessage: "Validation request failed" });
+    } finally {
+      setValidating(false);
+    }
   }
   return (
     <div>
       <PageHeader
         title="Corporate bills"
-        subtitle="Pay KPLC, water, internet and other billers from your wallet."
+        subtitle="Pay KPLC, KRA, water, internet, DStv/GOtv and other billers from your wallet."
       />
+      {live ? (
+        <p className="mb-4 rounded-control border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
+          Live biller catalog — connected to aggregator
+        </p>
+      ) : null}
       {result ? (
         <p className="mb-4 rounded-control border border-success/20 bg-success/5 px-4 py-3 text-sm text-success">
           {result}
@@ -191,9 +241,27 @@ export default function BillsPage() {
                 <Input
                   required
                   value={paying?.accountRef ?? ""}
-                  onChange={(e) => setPaying({ ...paying!, accountRef: e.target.value })}
+                  onChange={(e) => {
+                    setPaying({ ...paying!, accountRef: e.target.value });
+                    if (paying?.billerId && paying.billerId !== "custom") {
+                      validateAccount(paying.billerId, e.target.value);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (paying?.billerId && paying.billerId !== "custom") {
+                      validateAccount(paying.billerId, e.target.value);
+                    }
+                  }}
                   placeholder="e.g. 3102-XXX"
                 />
+                {validating && <p className="text-sm text-muted mt-1">Validating account...</p>}
+                {validation && !validating && (
+                  <p className={`text-sm mt-1 ${validation.valid ? "text-success" : "text-danger"}`}>
+                    {validation.valid
+                      ? `✓ Valid — ${validation.accountName ?? "Account verified"}`
+                      : `✗ ${validation.errorMessage ?? "Invalid account reference"}`}
+                  </p>
+                )}
               </div>
             </>
           )}

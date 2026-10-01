@@ -5,15 +5,24 @@ import { requireUser, apiOk, apiError } from "@/lib/api";
 import { createPayment, submitPayment } from "@zfloat/payments-core";
 import { normalizeKenyanPhone } from "@zfloat/validation";
 import { resolveApprovalRulesForSubmit } from "@/lib/approval-gate";
+import { AirtimeProviderAdapter } from "@zfloat/providers";
 
 export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
-  const { db } = getDb();
-  const rows = await db.select().from(schema.airtimeCatalog).orderBy(desc(schema.airtimeCatalog.createdAt)).limit(100);
-  return apiOk({
-    data: rows.map((r) => ({ ...r, denominationMinor: r.denominationMinor.toString() })),
-  });
+
+  const adapter = new AirtimeProviderAdapter();
+  try {
+    const liveCatalog = await adapter.getCatalog();
+    return apiOk({ data: liveCatalog, live: true });
+  } catch {
+    const { db } = getDb();
+    const rows = await db.select().from(schema.airtimeCatalog).orderBy(desc(schema.airtimeCatalog.createdAt)).limit(100);
+    return apiOk({
+      data: rows.map((r) => ({ ...r, denominationMinor: r.denominationMinor.toString() })),
+      live: false,
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -38,9 +47,6 @@ export async function POST(request: NextRequest) {
   let category = "airtime";
 
   if (productId === "custom") {
-    // Custom amount airtime/data. Product stays "airtime" (the validated
-    // product family for fee lookup); the AIRTIME/DATA distinction travels
-    // in category + remark.
     const customAmount = String(b.customAmount ?? "");
     const customNetwork = String(b.customNetwork ?? "SAF");
     const customType = String(b.customType ?? "AIRTIME").toUpperCase();
@@ -55,8 +61,15 @@ export async function POST(request: NextRequest) {
     remark = `Custom ${customType} (${customNetwork})`;
     category = customType.toLowerCase();
   } else {
-    // Predefined product
-    const [predefinedProduct] = await db.select().from(schema.airtimeCatalog).where(eq(schema.airtimeCatalog.id, productId)).limit(1);
+    const adapter = new AirtimeProviderAdapter();
+    let predefinedProduct: { productCode: string; name: string; network: string; type: string; denominationMinor: bigint } | undefined;
+    try {
+      const liveCatalog = await adapter.getCatalog();
+      predefinedProduct = liveCatalog.find((p) => p.productCode === productId);
+    } catch {
+      const [row] = await db.select().from(schema.airtimeCatalog).where(eq(schema.airtimeCatalog.productCode, productId)).limit(1);
+      predefinedProduct = row;
+    }
     if (!predefinedProduct) return apiError(404, "NOT_FOUND", "Airtime product not found");
     amount = (Number(predefinedProduct.denominationMinor) / 100).toFixed(2);
     product = predefinedProduct.type.toLowerCase();
