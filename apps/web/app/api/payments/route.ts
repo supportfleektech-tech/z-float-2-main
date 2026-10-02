@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
       status: schema.payments.status,
       amountMinor: schema.payments.amountMinor,
       feeMinor: schema.payments.feeMinor,
+      totalMinor: schema.payments.totalMinor,
+      whtCategory: schema.payments.whtCategory,
+      whtRateBps: schema.payments.whtRateBps,
+      whtAmountMinor: schema.payments.whtAmountMinor,
+      whtCertificateId: schema.payments.whtCertificateId,
       beneficiarySnapshot: schema.payments.beneficiarySnapshot,
       channel: schema.payments.channel,
       product: schema.payments.product,
@@ -40,7 +45,14 @@ export async function GET(request: NextRequest) {
   return apiOk({
     data: rows.map((r) => {
       const ben = (r.beneficiarySnapshot ?? {}) as Record<string, unknown>;
-      return { ...r, amountMinor: r.amountMinor.toString(), feeMinor: r.feeMinor.toString(), beneficiaryName: String(ben.name ?? "") };
+      return {
+        ...r,
+        amountMinor: r.amountMinor.toString(),
+        feeMinor: r.feeMinor.toString(),
+        totalMinor: r.totalMinor.toString(),
+        whtAmountMinor: r.whtAmountMinor.toString(),
+        beneficiaryName: String(ben.name ?? ""),
+      };
     }),
   });
 }
@@ -86,8 +98,15 @@ export async function POST(request: NextRequest) {
         tillNumber: recipient.tillNumber ? String(recipient.tillNumber) : undefined,
         paybillNumber: recipient.paybillNumber ? String(recipient.paybillNumber) : undefined,
         paybillAccount: recipient.paybillAccount ? String(recipient.paybillAccount) : undefined,
+        type: recipient.type ? String(recipient.type) : undefined,
+        kraPin: recipient.kraPin ? String(recipient.kraPin) : undefined,
+        idType: recipient.idType ? String(recipient.idType) : undefined,
+        idNumber: recipient.idNumber ? String(recipient.idNumber) : undefined,
+        isResident: recipient.isResident !== undefined ? Boolean(recipient.isResident) : undefined,
       },
       idempotencyKey,
+      whtCategory: b.whtCategory ? String(b.whtCategory).toUpperCase() : undefined,
+      whtIsResident: b.whtIsResident !== undefined ? Boolean(b.whtIsResident) : undefined,
     });
 
     await writeAuditEvent(db, { tenantId: user!.tenantId!, actorId: user!.userId, action: "payment.created", resourceType: "payment", resourceId: payment.paymentId });

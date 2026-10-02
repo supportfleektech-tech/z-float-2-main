@@ -21,6 +21,7 @@ import { computeFee, recordFeeCalculation } from "./fees.js";
 import { transitionPayment } from "./state.js";
 import { enqueueOutbox } from "./outbox.js";
 import { screenRecipientForPayment } from "@zfloat/kyc";
+import { calculateWht, detectWhtCategory, type WhtCalculationInput, type WhtCategory } from "@zfloat/etims";
 
 export class PaymentError extends Error {
   constructor(message: string, readonly code: string) {
@@ -52,9 +53,21 @@ export interface CreatePaymentInput {
     paybillNumber?: string;
     paybillAccount?: string;
     type?: string;
+    /** Beneficiary KRA PIN for WHT certificate */
+    kraPin?: string;
+    /** Beneficiary ID type (NATIONAL_ID, PASSPORT, etc.) */
+    idType?: string;
+    /** Beneficiary ID number */
+    idNumber?: string;
+    /** Whether the beneficiary is a Kenya tax resident */
+    isResident?: boolean;
   };
   idempotencyKey: string;
   providerCode?: string;
+  /** Explicit WHT category override (auto-detected from category/description if not provided) */
+  whtCategory?: WhtCategory;
+  /** Override beneficiary residency status for WHT calculation */
+  whtIsResident?: boolean;
 }
 
 export interface CreatedPayment {
@@ -64,6 +77,9 @@ export interface CreatedPayment {
   amountMinor: string;
   feeMinor: string;
   totalMinor: string;
+  whtAmountMinor: string;
+  whtCategory: string | null;
+  whtRateBps: number | null;
   approvalRequired: boolean;
 }
 
@@ -158,6 +174,17 @@ export async function createPayment(db: Db, input: CreatePaymentInput): Promise<
           channel: input.channel,
           providerCode: input.providerCode ?? "local-sandbox",
         });
+
+        // Calculate WHT
+        const whtCategory = input.whtCategory ?? detectWhtCategory(input.category, input.remark) ?? "OTHER";
+        const isResident = input.whtIsResident ?? input.recipient.isResident ?? true;
+        const whtResult = await calculateWht(tx, {
+          tenantId: input.tenantId,
+          category: whtCategory,
+          grossAmountMinor: amountMinor,
+          isResident,
+        });
+
         const [payment] = await tx
           .insert(schema.payments)
           .values({
@@ -174,6 +201,9 @@ export async function createPayment(db: Db, input: CreatePaymentInput): Promise<
             branchId: input.branchId,
             departmentId: input.departmentId,
             category: input.category,
+            whtCategory: whtResult.applicable ? whtResult.category : null,
+            whtRateBps: whtResult.applicable ? whtResult.rateBps : null,
+            whtAmountMinor: whtResult.whtAmountMinor,
             remark: input.remark,
             beneficiarySnapshot: buildBeneficiarySnapshot(input),
             idempotencyKey: input.idempotencyKey,
@@ -190,6 +220,9 @@ export async function createPayment(db: Db, input: CreatePaymentInput): Promise<
           amountMinor: amountMinor.toString(),
           feeMinor: fee.feeMinor.toString(),
           totalMinor: (amountMinor + fee.feeMinor).toString(),
+          whtAmountMinor: whtResult.whtAmountMinor.toString(),
+          whtCategory: whtResult.applicable ? whtResult.category : null,
+          whtRateBps: whtResult.applicable ? whtResult.rateBps : null,
           approvalRequired: false,
         };
       },

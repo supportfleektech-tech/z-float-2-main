@@ -311,6 +311,145 @@ export const paymentStatuses = [
   "CANCELLED",
 ] as const;
 
+/* ------------------------------------------------------------------ */
+/* Withholding Tax (WHT)                                               */
+/* ------------------------------------------------------------------ */
+
+export const whtCategories = [
+  "RENT",
+  "PROFESSIONAL_FEES",
+  "MANAGEMENT_FEES",
+  "CONTRACTS",
+  "ROYALTIES",
+  "INTEREST",
+  "DIVIDENDS",
+  "NON_RESIDENT",
+  "OTHER",
+] as const;
+export type WhtCategory = (typeof whtCategories)[number];
+
+export const withholdingTaxRules = pgTable(
+  "withholding_tax_rules",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    category: varchar("category", { length: 40 }).notNull(),
+    description: text("description"),
+    rateBps: integer("rate_bps").notNull(),
+    thresholdMinor: minor("threshold_minor").notNull().default(sql`0`),
+    isResident: boolean("is_resident").notNull().default(true),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+    version: integer("version").notNull().default(1),
+    changeComment: text("change_comment"),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("wht_rules_tenant_category_effective_uidx").on(t.tenantId, t.category, t.effectiveFrom),
+    index("wht_rules_tenant_idx").on(t.tenantId),
+    index("wht_rules_effective_idx").on(t.effectiveFrom, t.effectiveTo),
+  ],
+);
+
+export const withholdingTaxRuleVersions = pgTable("withholding_tax_rule_versions", {
+  id: id(),
+  ruleId: uuid("rule_id").notNull().references(() => withholdingTaxRules.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  snapshot: jsonb("snapshot").notNull(),
+  changeComment: text("change_comment"),
+  createdById: uuid("created_by_id"),
+  createdAt: createdAt(),
+});
+
+export const whtCertificateStatuses = [
+  "GENERATED",
+  "ISSUED",
+  "DOWNLOADED",
+  "VOIDED",
+] as const;
+
+export const withholdingTaxCertificates = pgTable(
+  "withholding_tax_certificates",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    certificateNumber: varchar("certificate_number", { length: 50 }).notNull(),
+    paymentId: uuid("payment_id").notNull().references((): any => payments.id),
+    beneficiaryId: uuid("beneficiary_id").references(() => beneficiaries.id),
+    beneficiaryName: varchar("beneficiary_name", { length: 200 }).notNull(),
+    beneficiaryKraPin: varchar("beneficiary_kra_pin", { length: 11 }),
+    beneficiaryIdType: varchar("beneficiary_id_type", { length: 20 }),
+    beneficiaryIdNumber: varchar("beneficiary_id_number", { length: 30 }),
+    category: varchar("category", { length: 40 }).notNull(),
+    grossAmountMinor: minor("gross_amount_minor").notNull(),
+    whtRateBps: integer("wht_rate_bps").notNull(),
+    whtAmountMinor: minor("wht_amount_minor").notNull(),
+    netAmountMinor: minor("net_amount_minor").notNull(),
+    certificateDate: timestamp("certificate_date", { withTimezone: true }).notNull().defaultNow(),
+    status: varchar("status", { length: 20 }).notNull().default("GENERATED"),
+    pdfRef: varchar("pdf_ref", { length: 200 }),
+    kraAcknowledgmentRef: varchar("kra_acknowledgment_ref", { length: 100 }),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidReason: text("void_reason"),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("wht_certificates_number_uidx").on(t.certificateNumber),
+    index("wht_certificates_tenant_idx").on(t.tenantId),
+    index("wht_certificates_payment_idx").on(t.paymentId),
+    index("wht_certificates_beneficiary_idx").on(t.beneficiaryId),
+    index("wht_certificates_date_idx").on(t.certificateDate),
+  ],
+);
+
+export const whtRemittances = pgTable(
+  "wht_remittances",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    remittanceNumber: varchar("remittance_number", { length: 50 }).notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    totalWhtMinor: minor("total_wht_minor").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+    kraEsleepReference: varchar("kra_eslip_reference", { length: 100 }),
+    kraEsleepReceiptNumber: varchar("kra_eslip_receipt_number", { length: 100 }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    paymentId: uuid("payment_id").references(() => payments.id),
+    pdfRef: varchar("pdf_ref", { length: 200 }),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("wht_remittances_number_uidx").on(t.remittanceNumber),
+    index("wht_remittances_tenant_idx").on(t.tenantId),
+    index("wht_remittances_period_idx").on(t.periodStart, t.periodEnd),
+  ],
+);
+
+export const whtRemittanceItems = pgTable(
+  "wht_remittance_items",
+  {
+    id: id(),
+    remittanceId: uuid("remittance_id").notNull().references(() => whtRemittances.id, { onDelete: "cascade" }),
+    certificateId: uuid("certificate_id").notNull().references(() => withholdingTaxCertificates.id),
+    whtAmountMinor: minor("wht_amount_minor").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("wht_remittance_items_remittance_idx").on(t.remittanceId)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Payments                                                            */
+/* ------------------------------------------------------------------ */
+
 export const payments = pgTable(
   "payments",
   {
@@ -332,6 +471,14 @@ export const payments = pgTable(
     branchId: uuid("branch_id").references(() => branches.id),
     departmentId: uuid("department_id").references(() => departments.id),
     category: varchar("category", { length: 100 }),
+    /** Withholding tax category (RENT, PROFESSIONAL_FEES, CONTRACTS, etc.) */
+    whtCategory: varchar("wht_category", { length: 40 }),
+    /** WHT rate in basis points (e.g., 500 = 5%) */
+    whtRateBps: integer("wht_rate_bps"),
+    /** WHT amount deducted (minor units) */
+    whtAmountMinor: minor("wht_amount_minor").notNull().default(sql`0`),
+    /** Reference to the generated WHT certificate */
+    whtCertificateId: uuid("wht_certificate_id").references((): any => withholdingTaxCertificates.id),
     remark: text("remark"),
     idempotencyKey: varchar("idempotency_key", { length: 128 }),
     providerId: uuid("provider_id").references(() => providers.id),
@@ -1815,5 +1962,120 @@ export const etimsDocuments = pgTable(
     index("etims_documents_tenant_created_idx").on(t.tenantId, t.createdAt),
     index("etims_documents_tenant_status_idx").on(t.tenantId, t.status),
     index("etims_documents_collection_idx").on(t.collectionId),
+  ],
+);
+
+/* Payroll                                                             */
+/* ------------------------------------------------------------------ */
+
+export const payrollRunStatuses = [
+  "DRAFT",
+  "CALCULATED",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+] as const;
+
+export const payrollRuns = pgTable(
+  "payroll_runs",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }).notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    payDate: timestamp("pay_date", { withTimezone: true }).notNull(),
+    status: varchar("status", { length: 30 }).notNull().default("DRAFT"),
+    totalGrossMinor: minor("total_gross_minor").notNull().default(sql`0`),
+    totalNetMinor: minor("total_net_minor").notNull().default(sql`0`),
+    totalPayeMinor: minor("total_paye_minor").notNull().default(sql`0`),
+    totalShifMinor: minor("total_shif_minor").notNull().default(sql`0`),
+    totalNssfMinor: minor("total_nssf_minor").notNull().default(sql`0`),
+    totalHousingMinor: minor("total_housing_minor").notNull().default(sql`0`),
+    employeeCount: integer("employee_count").notNull().default(0),
+    approvedById: uuid("approved_by_id"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("payroll_runs_tenant_idx").on(t.tenantId),
+    index("payroll_runs_period_idx").on(t.tenantId, t.periodStart, t.periodEnd),
+  ],
+);
+
+export const payrollEmployees = pgTable(
+  "payroll_employees",
+  {
+    id: id(),
+    runId: uuid("run_id").notNull().references(() => payrollRuns.id, { onDelete: "cascade" }),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id").notNull().references(() => users.id),
+    employeeNumber: varchar("employee_number", { length: 50 }),
+    departmentId: uuid("department_id").references(() => departments.id),
+    branchId: uuid("branch_id").references(() => branches.id),
+    basicSalaryMinor: minor("basic_salary_minor").notNull(),
+    allowancesMinor: minor("allowances_minor").notNull().default(sql`0`),
+    grossMinor: minor("gross_minor").notNull(),
+    payeMinor: minor("paye_minor").notNull().default(sql`0`),
+    shifMinor: minor("shif_minor").notNull().default(sql`0`),
+    nssfMinor: minor("nssf_minor").notNull().default(sql`0`),
+    housingMinor: minor("housing_minor").notNull().default(sql`0`),
+    otherDeductionsMinor: minor("other_deductions_minor").notNull().default(sql`0`),
+    totalDeductionsMinor: minor("total_deductions_minor").notNull().default(sql`0`),
+    netPayMinor: minor("net_pay_minor").notNull(),
+    kraPin: varchar("kra_pin", { length: 11 }),
+    nssfNumber: varchar("nssf_number", { length: 30 }),
+    shifNumber: varchar("shif_number", { length: 30 }),
+    status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("payroll_employees_run_idx").on(t.runId),
+    index("payroll_employees_tenant_idx").on(t.tenantId),
+    index("payroll_employees_employee_idx").on(t.employeeId),
+  ],
+);
+
+export const payrollDeductions = pgTable(
+  "payroll_deductions",
+  {
+    id: id(),
+    employeeId: uuid("employee_id").notNull().references(() => payrollEmployees.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").notNull().references(() => payrollRuns.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 30 }).notNull(), // PAYE | SHIF | NSSF | HOUSING | OTHER
+    name: varchar("name", { length: 100 }).notNull(),
+    amountMinor: minor("amount_minor").notNull(),
+    rate: varchar("rate", { length: 20 }),
+    taxableAmountMinor: minor("taxable_amount_minor"),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: createdAt(),
+  },
+  (t) => [index("payroll_deductions_employee_idx").on(t.employeeId), index("payroll_deductions_run_idx").on(t.runId)],
+);
+
+export const payslips = pgTable(
+  "payslips",
+  {
+    id: id(),
+    runId: uuid("run_id").notNull().references(() => payrollRuns.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id").notNull().references(() => payrollEmployees.id, { onDelete: "cascade" }),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    payslipNumber: varchar("payslip_number", { length: 50 }).notNull(),
+    pdfRef: varchar("pdf_ref", { length: 200 }),
+    status: varchar("status", { length: 20 }).notNull().default("GENERATED"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("payslips_number_uidx").on(t.payslipNumber),
+    index("payslips_run_idx").on(t.runId),
+    index("payslips_employee_idx").on(t.employeeId),
   ],
 );

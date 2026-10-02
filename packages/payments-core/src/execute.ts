@@ -15,6 +15,7 @@ import { applyReservation, postPaymentSuccessJournal, releaseReservation } from 
 import { enqueueOutbox } from "./outbox.js";
 import { transitionPayment } from "./state.js";
 import type { PaymentProvider, ProviderPaymentResult } from "@zfloat/providers";
+import { createWhtCertificate } from "@zfloat/etims";
 
 export class ExecutionError extends Error {
   constructor(message: string, readonly code: string) {
@@ -201,6 +202,16 @@ export async function applyProviderSuccess(
     amountMinor: BigInt(payment.amountMinor),
     feeMinor: BigInt(payment.feeMinor),
   });
+
+  // Generate WHT certificate if this payment had WHT
+  if (payment.whtAmountMinor > 0n && payment.whtCategory) {
+    try {
+      await createWhtCertificate(tx, { tenantId: payment.tenantId, paymentId: payment.id });
+    } catch (err) {
+      // Log but don't fail the payment — certificate can be generated manually
+      console.error(`[WHT] Failed to generate certificate for payment ${paymentId}:`, err);
+    }
+  }
 
   await enqueueOutbox(tx, {
     eventType: "payment.succeeded",
