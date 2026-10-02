@@ -19,6 +19,7 @@
   "dependencies": {
     "@zfloat/approvals": "workspace:*",
     "@zfloat/auth": "workspace:*",
+    "@zfloat/budgets": "workspace:*",
     "@zfloat/config": "workspace:*",
     "@zfloat/database": "workspace:*",
     "@zfloat/ledger": "workspace:*",

@@ -22,6 +22,7 @@ import { transitionPayment } from "./state.js";
 import { enqueueOutbox } from "./outbox.js";
 import { screenRecipientForPayment } from "@zfloat/kyc";
 import { calculateWht, detectWhtCategory, type WhtCalculationInput, type WhtCategory } from "@zfloat/etims";
+import { checkBudget, checkSpendLimit, checkPettyCashWallet, recordCommitment, releaseCommitment } from "@zfloat/budgets";
 
 export class PaymentError extends Error {
   constructor(message: string, readonly code: string) {
@@ -287,6 +288,79 @@ export async function submitPayment(db: Db, input: SubmitPaymentInput): Promise<
       }
     }
 
+    // ---- Budget checks ----
+    const budgetCheck = await checkBudget(tx, input.tenantId, {
+      amountMinor: BigInt(payment.totalMinor),
+      category: payment.category ?? "general",
+      branchId: payment.branchId ?? undefined,
+      departmentId: payment.departmentId ?? undefined,
+      employeeId: undefined, // could be derived from actor
+      paymentId: payment.id,
+    });
+    if (!budgetCheck.allowed) {
+      if (budgetCheck.action === "BLOCK") {
+        await transitionPayment(tx, {
+          paymentId: payment.id,
+          to: "FAILED",
+          actorId: input.actorId,
+          reason: budgetCheck.message ?? "Budget limit exceeded",
+        });
+        return { status: "FAILED" };
+      }
+      if (budgetCheck.action === "REQUIRE_APPROVAL") {
+        // Will be handled by approval flow below
+      }
+    }
+
+    // Check spend limits
+    const paymentCategory = payment.category ?? undefined;
+    if (payment.branchId) {
+      const spendLimitChecks = await checkSpendLimit(tx, input.tenantId, {
+        amountMinor: BigInt(payment.totalMinor),
+        category: paymentCategory,
+        entityType: "BRANCH",
+        entityId: payment.branchId,
+      });
+      for (const slc of spendLimitChecks) {
+        if (!slc.allowed) {
+          if (slc.action === "BLOCK") {
+            await transitionPayment(tx, {
+              paymentId: payment.id,
+              to: "FAILED",
+              actorId: input.actorId,
+              reason: slc.message ?? "Spend limit exceeded",
+            });
+            return { status: "FAILED" };
+          }
+          if (slc.action === "REQUIRE_APPROVAL") {
+            // Will be handled by approval flow
+          }
+        }
+      }
+    }
+
+    if (payment.departmentId) {
+      const spendLimitChecks = await checkSpendLimit(tx, input.tenantId, {
+        amountMinor: BigInt(payment.totalMinor),
+        category: paymentCategory,
+        entityType: "DEPARTMENT",
+        entityId: payment.departmentId,
+      });
+      for (const slc of spendLimitChecks) {
+        if (!slc.allowed) {
+          if (slc.action === "BLOCK") {
+            await transitionPayment(tx, {
+              paymentId: payment.id,
+              to: "FAILED",
+              actorId: input.actorId,
+              reason: slc.message ?? "Department spend limit exceeded",
+            });
+            return { status: "FAILED" };
+          }
+        }
+      }
+    }
+
     // Approval decision (policy snapshot is captured by the approval request)
     let rules = input.policyRules ?? [];
     let steps = evaluatePolicy(rules, {
@@ -370,6 +444,20 @@ async function queuePayment(tx: Tx, paymentId: string, actorId: string, tenantId
     }
     throw err;
   }
+
+  // Record budget commitments
+  await recordCommitment(tx, {
+    tenantId,
+    paymentId: payment.id,
+    amountMinor: BigInt(payment.totalMinor),
+    category: payment.category ?? "general",
+    subCategory: undefined,
+    budgetId: undefined, // Will be determined by budget check
+    spendLimitId: undefined,
+    pettyCashWalletId: undefined,
+    actorId,
+  });
+
   await transitionPayment(tx, { paymentId: payment.id, to: "QUEUED", actorId, reason: "queued for execution" });
   await enqueueOutbox(tx, {
     eventType: "payment.queued",
@@ -414,10 +502,31 @@ export async function cancelPayment(db: Db, input: { tenantId: string; paymentId
       .where(and(eq(schema.payments.id, input.paymentId), eq(schema.payments.tenantId, input.tenantId)))
       .for("update");
     if (!payment) throw new PaymentError("Payment not found", "PAYMENT_NOT_FOUND");
-    if (payment.status !== "DRAFT" && payment.status !== "REJECTED" && payment.status !== "FAILED" && payment.status !== "QUEUED") {
+    const cancellableStates = ["DRAFT", "REJECTED", "FAILED", "QUEUED"] as const;
+    if (!cancellableStates.includes(payment.status as typeof cancellableStates[number])) {
       throw new PaymentError(`Cannot cancel payment in state ${payment.status}`, "INVALID_STATE");
     }
+
+    // Check if we need to release budget commitments (for QUEUED, APPROVED, PENDING_APPROVAL)
+    const needsBudgetRelease = ["QUEUED", "APPROVED", "PENDING_APPROVAL"].includes(payment.status);
+
     await transitionPayment(tx, { paymentId: payment.id, to: "CANCELLED", actorId: input.actorId, reason: input.reason });
+
+    // Release budget commitments if payment was queued/approved
+    if (needsBudgetRelease) {
+      await releaseCommitment(tx, {
+        tenantId: input.tenantId,
+        paymentId: payment.id,
+        amountMinor: BigInt(payment.totalMinor),
+        category: payment.category ?? "general",
+        subCategory: undefined,
+        budgetId: undefined,
+        spendLimitId: undefined,
+        pettyCashWalletId: undefined,
+        actorId: input.actorId,
+      });
+    }
+
     await enqueueOutbox(tx, {
       eventType: "payment.cancelled",
       aggregateType: "payment",

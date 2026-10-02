@@ -255,6 +255,168 @@ export const wallets = pgTable(
   (t) => [index("wallets_tenant_idx").on(t.tenantId), index("wallets_branch_idx").on(t.branchId)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Budgets & Spend Limits                                              */
+/* ------------------------------------------------------------------ */
+
+export const budgetPeriods = ["MONTHLY", "QUARTERLY", "YEARLY", "CUSTOM"] as const;
+export type BudgetPeriod = (typeof budgetPeriods)[number];
+
+export const budgetScopes = ["TENANT", "BRANCH", "DEPARTMENT", "EMPLOYEE"] as const;
+export type BudgetScope = (typeof budgetScopes)[number];
+
+export const spendLimitActions = ["WARN", "BLOCK", "REQUIRE_APPROVAL"] as const;
+export type SpendLimitAction = (typeof spendLimitActions)[number];
+
+export const budgetStatuses = ["DRAFT", "ACTIVE", "EXPIRED", "ARCHIVED"] as const;
+export type BudgetStatus = (typeof budgetStatuses)[number];
+
+export const budgets = pgTable(
+  "budgets",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }).notNull(),
+    description: text("description"),
+    scope: varchar("scope", { length: 20 }).notNull().default("TENANT"),
+    scopeRef: uuid("scope_ref"),
+    period: varchar("period", { length: 20 }).notNull().default("MONTHLY"),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    totalLimitMinor: minor("total_limit_minor").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+    approvalRequired: boolean("approval_required").notNull().default(false),
+    approvalPolicyId: uuid("approval_policy_id").references(() => approvalPolicies.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("budgets_tenant_idx").on(t.tenantId),
+    index("budgets_scope_idx").on(t.tenantId, t.scope, t.scopeRef),
+    index("budgets_period_idx").on(t.tenantId, t.periodStart, t.periodEnd),
+    index("budgets_status_idx").on(t.tenantId, t.status),
+  ],
+);
+
+export const budgetItems = pgTable(
+  "budget_items",
+  {
+    id: id(),
+    budgetId: uuid("budget_id").notNull().references(() => budgets.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 100 }).notNull(),
+    subCategory: varchar("sub_category", { length: 100 }),
+    limitMinor: minor("limit_minor").notNull(),
+    warnThresholdPct: integer("warn_threshold_pct").notNull().default(80),
+    blockThresholdPct: integer("block_threshold_pct").notNull().default(100),
+    spentMinor: minor("spent_minor").notNull().default(sql`0`),
+    committedMinor: minor("committed_minor").notNull().default(sql`0`),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("budget_items_budget_idx").on(t.budgetId),
+    uniqueIndex("budget_items_budget_cat_uidx").on(t.budgetId, t.category, t.subCategory),
+  ],
+);
+
+export const spendLimits = pgTable(
+  "spend_limits",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    entityType: varchar("entity_type", { length: 20 }).notNull(),
+    entityId: uuid("entity_id").notNull(),
+    category: varchar("category", { length: 100 }),
+    subCategory: varchar("sub_category", { length: 100 }),
+    period: varchar("period", { length: 20 }).notNull().default("MONTHLY"),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    limitMinor: minor("limit_minor").notNull(),
+    action: varchar("action", { length: 20 }).notNull().default("WARN"),
+    spentMinor: minor("spent_minor").notNull().default(sql`0`),
+    committedMinor: minor("committed_minor").notNull().default(sql`0`),
+    alert80Sent: boolean("alert_80_sent").notNull().default(false),
+    alert90Sent: boolean("alert_90_sent").notNull().default(false),
+    alert100Sent: boolean("alert_100_sent").notNull().default(false),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("spend_limits_tenant_idx").on(t.tenantId),
+    index("spend_limits_entity_idx").on(t.tenantId, t.entityType, t.entityId),
+    index("spend_limits_period_idx").on(t.tenantId, t.periodStart, t.periodEnd),
+    uniqueIndex("spend_limits_entity_cat_uidx").on(t.tenantId, t.entityType, t.entityId, t.category, t.subCategory, t.periodStart),
+  ],
+);
+
+export const pettyCashWallets = pgTable(
+  "petty_cash_wallets",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    parentWalletId: uuid("parent_wallet_id").notNull().references(() => wallets.id, { onDelete: "cascade" }),
+    walletId: uuid("wallet_id").notNull().unique().references(() => wallets.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id").notNull().references(() => users.id),
+    branchId: uuid("branch_id").references(() => branches.id, { onDelete: "set null" }),
+    departmentId: uuid("department_id").references(() => departments.id, { onDelete: "set null" }),
+    dailyLimitMinor: minor("daily_limit_minor").notNull(),
+    monthlyLimitMinor: minor("monthly_limit_minor").notNull(),
+    dailySpentMinor: minor("daily_spent_minor").notNull().default(sql`0`),
+    monthlySpentMinor: minor("monthly_spent_minor").notNull().default(sql`0`),
+    dailyCommittedMinor: minor("daily_committed_minor").notNull().default(sql`0`),
+    monthlyCommittedMinor: minor("monthly_committed_minor").notNull().default(sql`0`),
+    dailyPeriodStart: timestamp("daily_period_start", { withTimezone: true }).notNull().defaultNow(),
+    monthlyPeriodStart: timestamp("monthly_period_start", { withTimezone: true }).notNull().defaultNow(),
+    approvalThresholdMinor: minor("approval_threshold_minor").notNull().default(sql`0`),
+    approvalPolicyId: uuid("approval_policy_id").references(() => approvalPolicies.id, { onDelete: "set null" }),
+    status: varchar("status", { length: 30 }).notNull().default("ACTIVE"),
+    dailyAlert80Sent: boolean("daily_alert_80_sent").notNull().default(false),
+    dailyAlert90Sent: boolean("daily_alert_90_sent").notNull().default(false),
+    monthlyAlert80Sent: boolean("monthly_alert_80_sent").notNull().default(false),
+    monthlyAlert90Sent: boolean("monthly_alert_90_sent").notNull().default(false),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("petty_cash_wallets_tenant_idx").on(t.tenantId),
+    index("petty_cash_wallets_parent_idx").on(t.parentWalletId),
+    index("petty_cash_wallets_employee_idx").on(t.employeeId),
+    index("petty_cash_wallets_branch_idx").on(t.branchId),
+  ],
+);
+
+export const budgetSpendEvents = pgTable(
+  "budget_spend_events",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    budgetId: uuid("budget_id").references(() => budgets.id, { onDelete: "set null" }),
+    budgetItemId: uuid("budget_item_id").references(() => budgetItems.id, { onDelete: "set null" }),
+    spendLimitId: uuid("spend_limit_id").references(() => spendLimits.id, { onDelete: "set null" }),
+    pettyCashWalletId: uuid("petty_cash_wallet_id").references(() => pettyCashWallets.id, { onDelete: "set null" }),
+    paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+    eventType: varchar("event_type", { length: 30 }).notNull(),
+    category: varchar("category", { length: 100 }),
+    subCategory: varchar("sub_category", { length: 100 }),
+    amountMinor: minor("amount_minor").notNull(),
+    balanceAfterMinor: minor("balance_after_minor").notNull(),
+    committedAfterMinor: minor("committed_after_minor").notNull(),
+    note: text("note"),
+    createdById: uuid("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("budget_spend_events_tenant_idx").on(t.tenantId),
+    index("budget_spend_events_budget_idx").on(t.budgetId),
+    index("budget_spend_events_payment_idx").on(t.paymentId),
+    index("budget_spend_events_petty_idx").on(t.pettyCashWalletId),
+    index("budget_spend_events_created_idx").on(t.createdAt),
+  ],
+);
+
 export const beneficiaries = pgTable(
   "beneficiaries",
   {

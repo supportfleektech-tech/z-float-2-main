@@ -209,7 +209,16 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Reject side effects: never leave the gated resource in limbo.
-          if (req.resourceType === "beneficiary" && req.resourceId) {
+          if (req.paymentId) {
+            // Release budget commitments for rejected payment
+            const { cancelPayment } = await import("@zfloat/payments-core");
+            await cancelPayment(d2, {
+              tenantId: req.tenantId,
+              paymentId: req.paymentId,
+              actorId: user!.userId,
+              reason: "Approval rejected",
+            });
+          } else if (req.resourceType === "beneficiary" && req.resourceId) {
             await rejectBeneficiary(d2, { tenantId: req.tenantId, beneficiaryId: req.resourceId, actorId: user!.userId });
           } else if (req.resourceType === "invite" && req.resourceId) {
             await applyInviteRoleDecision(d2, { inviteId: req.resourceId, decision: "REJECTED", actorId: user!.userId });
