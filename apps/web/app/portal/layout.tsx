@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand";
 import { Spinner } from "@/components/ui";
 import NotificationBell from "@/components/notification-bell";
 import { BranchProvider, useBranch } from "@/app/portal/context/BranchContext";
+import { ChatButton } from "@/components/support/ChatWidget";
 
 const NAV = [
   {
@@ -74,6 +75,7 @@ function PortalLayoutContent({
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<{
+    userId: string;
     fullName: string;
     email: string;
     tenantId: string | null;
@@ -90,7 +92,12 @@ function PortalLayoutContent({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (disposed) return;
-        setUser(d?.user ?? null);
+        setUser(d?.user ? {
+          userId: d.user.id,
+          fullName: d.user.fullName,
+          email: d.user.email,
+          tenantId: d.user.tenantId,
+        } : null);
         setLoading(false);
       })
       .catch(() => {
@@ -233,6 +240,16 @@ function PortalLayoutContent({
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+
+      {/* Support Chat Widget */}
+      {user && (
+        <ChatButton
+          tenantId={user.tenantId ?? ""}
+          userId={user.userId}
+          userName={user.fullName}
+          userEmail={user.email}
+        />
+      )}
     </div>
   );
 }

@@ -231,3 +231,32 @@ export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: strin
     </div>
   );
 }
+
+export function ScrollArea({ className = "", children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`overflow-y-auto ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function Avatar({
+  src,
+  fallback,
+  size = "md",
+  className = "",
+}: { src?: string; fallback?: string; size?: "sm" | "md" | "lg"; className?: string }) {
+  const sizes = {
+    sm: "h-8 w-8 text-xs",
+    md: "h-10 w-10 text-sm",
+    lg: "h-12 w-12 text-base",
+  };
+  if (src) {
+    return <img src={src} alt="" className={`rounded-full ${sizes[size]} ${className}`} />;
+  }
+  return (
+    <div className={`rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium ${sizes[size]} ${className}`}>
+      {fallback ?? "?"}
+    </div>
+  );
+}

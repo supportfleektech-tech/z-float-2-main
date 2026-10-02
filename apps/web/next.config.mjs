@@ -14,7 +14,9 @@ const nextConfig = {
     "@zfloat/providers",
     "@zfloat/queue",
     "@zfloat/secrets",
+    "@zfloat/support",
     "@zfloat/validation",
+    "@zfloat/accounting",
   ],
   experimental: {
     serverComponentsExternalPackages: ["pg", "bullmq", "@valkey/valkey-glide"],

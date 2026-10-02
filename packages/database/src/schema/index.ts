@@ -1205,6 +1205,49 @@ export const approvalDelegations = pgTable("approval_delegations", {
   createdAt: createdAt(),
 });
 
+export const approvalTokens = pgTable(
+  "approval_tokens",
+  {
+    id: id(),
+    requestId: uuid("request_id").notNull().references(() => approvalRequests.id, { onDelete: "cascade" }),
+    stepId: uuid("step_id").references(() => approvalSteps.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    decision: varchar("decision", { length: 20 }).notNull(), // APPROVE|REJECT
+    status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING|USED|EXPIRED|REVOKED
+    channel: varchar("channel", { length: 20 }).notNull(), // WHATSAPP|SMS|USSD|EMAIL
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("approval_tokens_request_idx").on(t.requestId),
+    index("approval_tokens_actor_idx").on(t.actorId),
+    index("approval_tokens_hash_idx").on(t.tokenHash),
+    uniqueIndex("approval_tokens_request_actor_decision_uidx").on(t.requestId, t.actorId, t.decision),
+  ],
+);
+
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tenantId: tenantId().notNull(),
+    channel: varchar("channel", { length: 20 }).notNull(), // IN_APP|EMAIL|SMS|WHATSAPP|USSD
+    eventType: varchar("event_type", { length: 50 }).notNull(), // approval_requested|payment_succeeded|etc
+    enabled: boolean("enabled").notNull().default(true),
+    priority: integer("priority").notNull().default(0), // order of preference
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("notification_preferences_user_idx").on(t.userId),
+    index("notification_preferences_tenant_idx").on(t.tenantId),
+    uniqueIndex("notification_preferences_user_channel_event_uidx").on(t.userId, t.channel, t.eventType),
+  ],
+);
+
 /* ------------------------------------------------------------------ */
 /* Reconciliation                                                      */
 /* ------------------------------------------------------------------ */
@@ -1455,7 +1498,7 @@ export const notificationTemplates = pgTable(
   {
     id: id(),
     code: varchar("code", { length: 80 }).notNull(),
-    channel: varchar("channel", { length: 20 }).notNull(), // IN_APP|EMAIL|SMS
+    channel: varchar("channel", { length: 20 }).notNull(), // IN_APP|EMAIL|SMS|WHATSAPP|USSD
     subject: varchar("subject", { length: 200 }),
     body: text("body").notNull(),
     enabled: boolean("enabled").notNull().default(true),
@@ -1471,7 +1514,7 @@ export const notifications = pgTable(
     id: id(),
     tenantId: tenantId(),
     userId: uuid("user_id"),
-    channel: varchar("channel", { length: 20 }).notNull().default("IN_APP"),
+    channel: varchar("channel", { length: 20 }).notNull().default("IN_APP"), // IN_APP|EMAIL|SMS|WHATSAPP|USSD
     templateCode: varchar("template_code", { length: 80 }),
     title: varchar("title", { length: 200 }),
     body: text("body"),
@@ -1525,6 +1568,18 @@ export const pages = pgTable(
 /* Support                                                             */
 /* ------------------------------------------------------------------ */
 
+export const supportTicketStatuses = ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"] as const;
+export type SupportTicketStatus = (typeof supportTicketStatuses)[number];
+
+export const supportPriorities = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+export type SupportPriority = (typeof supportPriorities)[number];
+
+export const chatSessionStatuses = ["WAITING", "ACTIVE", "TRANSFERRED", "ENDED"] as const;
+export type ChatSessionStatus = (typeof chatSessionStatuses)[number];
+
+export const callbackStatuses = ["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_ANSWER"] as const;
+export type CallbackStatus = (typeof callbackStatuses)[number];
+
 export const supportTickets = pgTable(
   "support_tickets",
   {
@@ -1533,8 +1588,8 @@ export const supportTickets = pgTable(
     userId: uuid("user_id"),
     subject: varchar("subject", { length: 300 }).notNull(),
     body: text("body").notNull(),
-    status: varchar("status", { length: 30 }).notNull().default("OPEN"),
-    priority: varchar("priority", { length: 20 }).notNull().default("NORMAL"),
+    status: varchar("status", { length: 30 }).notNull().default("OPEN").$type<SupportTicketStatus>(),
+    priority: varchar("priority", { length: 20 }).notNull().default("NORMAL").$type<SupportPriority>(),
     assignedToId: uuid("assigned_to_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1550,6 +1605,95 @@ export const ticketMessages = pgTable("ticket_messages", {
   body: text("body").notNull(),
   createdAt: createdAt(),
 });
+
+export const supportAgents = pgTable(
+  "support_agents",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    userId: uuid("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+    displayName: varchar("display_name", { length: 200 }).notNull(),
+    email: varchar("email", { length: 254 }).notNull(),
+    phone: varchar("phone", { length: 20 }),
+    avatarUrl: varchar("avatar_url", { length: 500 }),
+    isActive: boolean("is_active").notNull().default(true),
+    isPlatform: boolean("is_platform").notNull().default(false),
+    maxConcurrentChats: integer("max_concurrent_chats").notNull().default(3),
+    currentChats: integer("current_chats").notNull().default(0),
+    skills: varchar("skills", { length: 60 }).array().default(sql`'{}'::varchar[]`),
+    workingHours: jsonb("working_hours").notNull().default(sql`'{}'::jsonb`),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("support_agents_tenant_idx").on(t.tenantId),
+    index("support_agents_active_idx").on(t.isActive),
+  ],
+);
+
+export const supportChatSessions = pgTable(
+  "support_chat_sessions",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    userId: uuid("user_id").notNull(),
+    agentId: uuid("agent_id").references(() => supportAgents.id, { onDelete: "set null" }),
+    status: varchar("status", { length: 20 }).notNull().default("WAITING").$type<ChatSessionStatus>(),
+    subject: varchar("subject", { length: 300 }),
+    priority: varchar("priority", { length: 20 }).notNull().default("NORMAL").$type<SupportPriority>(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("support_chat_sessions_tenant_idx").on(t.tenantId),
+    index("support_chat_sessions_user_idx").on(t.userId),
+    index("support_chat_sessions_agent_idx").on(t.agentId),
+    index("support_chat_sessions_status_idx").on(t.status),
+  ],
+);
+
+export const supportChatMessages = pgTable(
+  "support_chat_messages",
+  {
+    id: id(),
+    sessionId: uuid("session_id").notNull().references(() => supportChatSessions.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id"),
+    authorIsAgent: boolean("author_is_agent").notNull().default(false),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("support_chat_messages_session_idx").on(t.sessionId)],
+);
+
+export const callbackRequests = pgTable(
+  "callback_requests",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    userId: uuid("user_id").notNull(),
+    name: varchar("name", { length: 200 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    email: varchar("email", { length: 254 }),
+    preferredTime: timestamp("preferred_time", { withTimezone: true }).notNull(),
+    timezone: varchar("timezone", { length: 50 }).notNull().default("Africa/Nairobi"),
+    reason: text("reason"),
+    status: varchar("status", { length: 20 }).notNull().default("PENDING").$type<CallbackStatus>(),
+    assignedAgentId: uuid("assigned_agent_id").references(() => supportAgents.id, { onDelete: "set null" }),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("callback_requests_tenant_idx").on(t.tenantId),
+    index("callback_requests_user_idx").on(t.userId),
+    index("callback_requests_status_idx").on(t.status),
+    index("callback_requests_preferred_time_idx").on(t.preferredTime),
+  ],
+);
 
 /* ------------------------------------------------------------------ */
 /* Settings / flags / webhooks / providers                             */
@@ -2239,5 +2383,164 @@ export const payslips = pgTable(
     uniqueIndex("payslips_number_uidx").on(t.payslipNumber),
     index("payslips_run_idx").on(t.runId),
     index("payslips_employee_idx").on(t.employeeId),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* Accounting Integrations                                            */
+/* ------------------------------------------------------------------ */
+
+export const accountingProviders = [
+  "quickbooks",
+  "xero",
+  "zoho",
+  "sage",
+] as const;
+export type AccountingProvider = (typeof accountingProviders)[number];
+
+export const accountingConnectionStatuses = [
+  "CONNECTING",
+  "CONNECTED",
+  "DISCONNECTED",
+  "ERROR",
+  "EXPIRED",
+] as const;
+export type AccountingConnectionStatus = (typeof accountingConnectionStatuses)[number];
+
+export const accountingSyncStatuses = [
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "FAILED",
+  "PARTIAL",
+] as const;
+export type AccountingSyncStatus = (typeof accountingSyncStatuses)[number];
+
+export const accountingSyncTypes = [
+  "PAYMENT",
+  "INVOICE",
+  "ETIMS",
+  "JOURNAL_ENTRY",
+  "FULL",
+] as const;
+export type AccountingSyncType = (typeof accountingSyncTypes)[number];
+
+export const accountingConnections = pgTable(
+  "accounting_connections",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 20 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("CONNECTING"),
+    /** Encrypted access token (AES-256-GCM). */
+    accessTokenEncrypted: text("access_token_encrypted"),
+    /** Encrypted refresh token (AES-256-GCM). */
+    refreshTokenEncrypted: text("refresh_token_encrypted"),
+    /** Token expiry (UTC). */
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    /** Provider-specific realm/company ID. */
+    realmId: varchar("realm_id", { length: 100 }),
+    /** Provider-specific company name. */
+    companyName: varchar("company_name", { length: 200 }),
+    /** Scopes granted. */
+    scopes: varchar("scopes", { length: 500 }).array().default(sql`'{}'::varchar[]`),
+    /** Last successful sync timestamp. */
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    /** Last sync status. */
+    lastSyncStatus: varchar("last_sync_status", { length: 20 }),
+    /** Last sync error message. */
+    lastSyncError: text("last_sync_error"),
+    /** OAuth2 state for CSRF protection (temporary). */
+    oauthState: varchar("oauth_state", { length: 128 }),
+    /** PKCE code verifier for OAuth2 (temporary). */
+    pkceVerifier: varchar("pkce_verifier", { length: 128 }),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("accounting_connections_tenant_provider_uidx").on(t.tenantId, t.provider),
+    index("accounting_connections_tenant_idx").on(t.tenantId),
+    index("accounting_connections_status_idx").on(t.status),
+  ],
+);
+
+export const accountingMappings = pgTable(
+  "accounting_mappings",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id").notNull().references(() => accountingConnections.id, { onDelete: "cascade" }),
+    /** Z-float chart of accounts reference. */
+    chartAccountId: uuid("chart_account_id").references(() => chartOfAccounts.id, { onDelete: "set null" }),
+    /** Z-float ledger account reference (wallet/system). */
+    ledgerAccountId: uuid("ledger_account_id").references(() => ledgerAccounts.id, { onDelete: "set null" }),
+    /** External accounting system account ID. */
+    externalAccountId: varchar("external_account_id", { length: 200 }).notNull(),
+    /** External account name (for display). */
+    externalAccountName: varchar("external_account_name", { length: 200 }).notNull(),
+    /** External account code/number. */
+    externalAccountCode: varchar("external_account_code", { length: 100 }),
+    /** External account type (matches provider's classification). */
+    externalAccountType: varchar("external_account_type", { length: 50 }),
+    /** Mapping direction. */
+    direction: varchar("direction", { length: 20 }).notNull().default("OUTBOUND"), // OUTBOUND | INBOUND | BIDIRECTIONAL
+    /** Whether this mapping is active. */
+    isActive: boolean("is_active").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("accounting_mappings_conn_external_uidx").on(t.connectionId, t.externalAccountId),
+    index("accounting_mappings_tenant_idx").on(t.tenantId),
+    index("accounting_mappings_chart_idx").on(t.chartAccountId),
+    index("accounting_mappings_ledger_idx").on(t.ledgerAccountId),
+  ],
+);
+
+export const accountingSyncLog = pgTable(
+  "accounting_sync_log",
+  {
+    id: id(),
+    tenantId: tenantId().notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id").notNull().references(() => accountingConnections.id, { onDelete: "cascade" }),
+    /** Type of sync operation. */
+    syncType: varchar("sync_type", { length: 20 }).notNull(),
+    /** Status of the sync. */
+    status: varchar("status", { length: 20 }).notNull().default("PENDING"),
+    /** Z-float entity ID being synced (payment, invoice, etc.). */
+    entityId: uuid("entity_id"),
+    /** Entity type for reference. */
+    entityType: varchar("entity_type", { length: 30 }),
+    /** Provider-side reference ID after successful sync. */
+    providerReference: varchar("provider_reference", { length: 200 }),
+    /** Provider-side external ID (e.g., QuickBooks TxnId, Xero InvoiceID). */
+    externalId: varchar("external_id", { length: 200 }),
+    /** Number of records synced in this operation. */
+    recordsSynced: integer("records_synced").notNull().default(0),
+    /** Number of records failed. */
+    recordsFailed: integer("records_failed").notNull().default(0),
+    /** Error details for failed records. */
+    errors: jsonb("errors").default(sql`'[]'::jsonb`),
+    /** Request payload sent to provider (sanitized). */
+    requestPayload: jsonb("request_payload"),
+    /** Response payload from provider (sanitized). */
+    responsePayload: jsonb("response_payload"),
+    /** Started at timestamp. */
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Completed at timestamp. */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    /** Duration in milliseconds. */
+    durationMs: integer("duration_ms"),
+    createdById: uuid("created_by_id").references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("accounting_sync_log_tenant_idx").on(t.tenantId),
+    index("accounting_sync_log_connection_idx").on(t.connectionId),
+    index("accounting_sync_log_entity_idx").on(t.entityType, t.entityId),
+    index("accounting_sync_log_status_idx").on(t.status),
+    index("accounting_sync_log_created_idx").on(t.createdAt),
   ],
 );
