@@ -19,7 +19,6 @@
     "@zfloat/config": "workspace:*",
     "@zfloat/database": "workspace:*",
     "@zfloat/money": "workspace:*",
-    "@zfloat/payments-core": "workspace:*",
     "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {

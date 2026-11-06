@@ -8,7 +8,57 @@ import { randomBytes } from "node:crypto";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { schema, toJsonSafe, type Db, type Tx } from "@zfloat/database";
 import { calculateWht, type WhtCalculationResult } from "./wht.js";
-import { createPayment } from "@zfloat/payments-core";
+
+/** Payment creation input for WHT remittance */
+export interface CreatePaymentInput {
+  tenantId: string;
+  actorId: string;
+  amount: string;
+  currency?: "KES";
+  channel: "mpesa" | "till" | "paybill" | "bank";
+  product?: string;
+  sourceWalletId: string;
+  branchId?: string;
+  departmentId?: string;
+  category?: string;
+  remark?: string;
+  recipient: {
+    name: string;
+    phone?: string;
+    email?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    bankCode?: string;
+    tillNumber?: string;
+    paybillNumber?: string;
+    paybillAccount?: string;
+    type?: string;
+    kraPin?: string;
+    idType?: string;
+    idNumber?: string;
+    isResident?: boolean;
+  };
+  idempotencyKey: string;
+  providerCode?: string;
+  whtCategory?: string;
+  whtIsResident?: boolean;
+}
+
+export interface CreatedPayment {
+  paymentId: string;
+  paymentNumber: string;
+  status: string;
+  amountMinor: string;
+  feeMinor: string;
+  totalMinor: string;
+  whtAmountMinor: string;
+  whtCategory: string | null;
+  whtRateBps: number | null;
+  approvalRequired: boolean;
+}
+
+/** Payment creation function signature for WHT remittance */
+export type CreatePaymentFn = (db: any, input: CreatePaymentInput) => Promise<{ replayed: boolean; payment: CreatedPayment }>;
 
 export interface WhtCertificateData {
   certificateNumber: string;
@@ -408,6 +458,7 @@ export async function createWhtRemittance(
 export async function submitWhtRemittanceToKra(
   db: Db,
   input: { remittanceId: string; actorId: string; sourceWalletId: string },
+  createPaymentFn: CreatePaymentFn,
 ): Promise<{ paymentId: string; paymentNumber: string }> {
   const [remittance] = await db
     .select()
@@ -421,7 +472,7 @@ export async function submitWhtRemittanceToKra(
 
   // Create a payment to KRA eSlip paybill
   // This uses the existing payment creation flow with the KRA eSlip biller
-  const paymentResult = await createPayment(db, {
+  const paymentResult = await createPaymentFn(db, {
     tenantId: remittance.tenantId,
     actorId: input.actorId,
     amount: (Number(remittance.totalWhtMinor) / 100).toFixed(2), // Convert minor to decimal string
