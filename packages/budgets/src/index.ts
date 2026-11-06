@@ -60,9 +60,12 @@ export {
 } from "./engine.js";
 
 export {
+  parseMinor,
   budgetAlertsWorker,
   checkAndSendBudgetAlerts,
 } from "./alerts.js";
+
+export { parseMinor } from "@zfloat/money";
 
 export {
   evaluateBudgetRules,
