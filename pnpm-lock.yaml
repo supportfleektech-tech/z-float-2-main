@@ -316,6 +316,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -350,6 +353,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@types/pg':
         specifier: ^8.11.10
         version: 8.23.1
@@ -390,6 +396,9 @@ importers:
         specifier: ^0.36.4
         version: 0.36.4(@types/pg@8.23.1)(@types/react@18.3.31)(pg@8.23.1)(react@18.3.1)
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@zfloat/ledger':
         specifier: workspace:*
         version: link:../ledger
@@ -606,6 +615,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -631,6 +643,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -669,6 +684,9 @@ importers:
         specifier: workspace:*
         version: link:../config
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -4866,7 +4884,7 @@ snapshots:
 
   '@types/fs-extra@8.1.5':
     dependencies:
-      '@types/node': 20.19.43
+      '@types/node': 22.20.5
 
   '@types/node@20.19.43':
     dependencies:
