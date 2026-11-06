@@ -239,11 +239,19 @@ function isProductionLike(nodeEnv: string | undefined): boolean {
   return nodeEnv === "production" || nodeEnv === "staging";
 }
 
+/** Check if we're in a Next.js build context (static generation). */
+function isBuildTime(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build" ||
+         process.env.NEXT_PHASE === "phase-development-server" ||
+         process.env.NODE_ENV === "test";
+}
+
 /** Read process.env and validate. Throws a descriptive error listing problems. */
 export function loadConfig(options: ConfigOptions = {}): AppEnv {
   const source = options.env ?? process.env;
 
-  if (isProductionLike(source.NODE_ENV)) {
+  // Skip production checks in lenient mode (e.g., build-time config reads) or during build
+  if (!options.lenient && isProductionLike(source.NODE_ENV) && !isBuildTime()) {
     // Strict mode: production-critical variables must be present.
     const required: Array<[keyof AppEnv, string]> = [
       ["DATABASE_URL", "DATABASE_URL"],
@@ -310,9 +318,15 @@ export function loadConfig(options: ConfigOptions = {}): AppEnv {
 
 /** Singleton config, loaded once per process. */
 let cached: AppEnv | null = null;
+let cachedOpts: ConfigOptions | null = null;
 export function getConfig(opts?: ConfigOptions): AppEnv {
   if (!cached || opts) {
+    // If opts differ from cached opts, reload
+    if (cached && cachedOpts && JSON.stringify(cachedOpts) !== JSON.stringify(opts)) {
+      cached = null;
+    }
     cached = loadConfig(opts);
+    cachedOpts = opts ?? null;
   }
   return cached;
 }

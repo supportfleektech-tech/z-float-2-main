@@ -3,6 +3,7 @@ import { requirePlatformAdmin, apiOk } from "@/lib/api";
 import { getRedis, getQueueCounts, type QueueName } from "@zfloat/queue";
 import { evaluateAlerts, worstSeverity } from "@zfloat/observability";
 import { maybeSendOpsAlerts } from "@/lib/ops-alerts";
+// import { getConfig } from "@zfloat/config"; // Moved inside GET to avoid build-time config validation
 
 /** Queues whose backlog can block revenue-critical work. */
 const CRITICAL_QUEUES: QueueName[] = [
@@ -16,8 +17,15 @@ const CRITICAL_QUEUES: QueueName[] = [
 const HEARTBEAT_KEY = "zfloat:worker:heartbeat";
 const LEDGER_KEY = "zfloat:ledger:last";
 const WORKER_STALE_MS = 120_000;
+const DISK_WARN_THRESHOLD_PCT = 80;
+const MEMORY_WARN_THRESHOLD_PCT = 85;
+
+// Force dynamic rendering - this route must run at request time, not build time
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const { getConfig } = await import("@zfloat/config");
+  const config = getConfig({ lenient: true });
   const { response } = await requirePlatformAdmin();
   if (response) return response;
   const { db } = getDb();
@@ -144,6 +152,74 @@ export async function GET() {
     // metrics best-effort
   }
 
+  // Database connection pool stats
+  let poolStats = { total: 0, idle: 0, waiting: 0 };
+  try {
+    const poolResult = await db.execute(sql`select count(*)::int as total, count(*) filter (where state = 'idle')::int as idle, count(*) filter (where state = 'active')::int as waiting from pg_stat_activity where datname = current_database()`);
+    const pool = poolResult.rows[0];
+    poolStats = {
+      total: Number(pool?.total ?? 0),
+      idle: Number(pool?.idle ?? 0),
+      waiting: Number(pool?.waiting ?? 0),
+    };
+    checks.push({
+      name: "db_pool",
+      ok: poolStats.waiting === 0 && poolStats.total < 50, // configurable threshold
+      detail: `${poolStats.total} total, ${poolStats.idle} idle, ${poolStats.waiting} waiting`,
+    });
+  } catch (err) {
+    checks.push({ name: "db_pool", ok: false, detail: err instanceof Error ? err.message : "query failed" });
+  }
+
+  // Disk space check
+  try {
+    const { statfsSync } = await import("node:fs");
+    const stats = statfsSync("/");
+    const total = stats.blocks * stats.bsize;
+    const free = stats.bfree * stats.bsize;
+    const usedPct = Math.round(((total - free) / total) * 100);
+    checks.push({
+      name: "disk",
+      ok: usedPct < DISK_WARN_THRESHOLD_PCT,
+      detail: `${usedPct}% used (${Math.round(free / 1e9)} GB free)`,
+    });
+  } catch (err) {
+    checks.push({ name: "disk", ok: false, detail: err instanceof Error ? err.message : "disk check failed" });
+  }
+
+  // Memory usage
+  try {
+    const mem = process.memoryUsage();
+    const heapUsedPct = Math.round((mem.heapUsed / mem.heapTotal) * 100);
+    checks.push({
+      name: "memory",
+      ok: heapUsedPct < MEMORY_WARN_THRESHOLD_PCT,
+      detail: `${heapUsedPct}% heap used (${Math.round(mem.heapUsed / 1e6)} MB / ${Math.round(mem.heapTotal / 1e6)} MB)`,
+    });
+  } catch (err) {
+    checks.push({ name: "memory", ok: false, detail: err instanceof Error ? err.message : "memory check failed" });
+  }
+
+  // Provider connectivity (best-effort)
+  let providersHealth = { mpesa: false, bank: false };
+  try {
+    const config = getConfig();
+    if (config.MPESA_API_BASE_URL && config.MPESA_CONSUMER_KEY && config.MPESA_CONSUMER_SECRET) {
+      // Best-effort: just check if configured, not actual connectivity
+      providersHealth.mpesa = true;
+    }
+    if (config.BANK_API_BASE_URL && config.BANK_API_KEY && config.BANK_API_SECRET) {
+      providersHealth.bank = true;
+    }
+    checks.push({
+      name: "providers",
+      ok: true,
+      detail: `M-Pesa: ${providersHealth.mpesa ? "configured" : "not configured"}, Bank: ${providersHealth.bank ? "configured" : "not configured"}`,
+    });
+  } catch (err) {
+    checks.push({ name: "providers", ok: false, detail: err instanceof Error ? err.message : "check failed" });
+  }
+
   const metrics = {
     queueBacklogs,
     payments24h,
@@ -152,6 +228,8 @@ export async function GET() {
     workerHeartbeatAgeMs,
     ledger,
     activeApiKeys,
+    poolStats,
+    providersHealth,
   };
 
   // ---- alert rules ----
