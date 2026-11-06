@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm install --frozen-lockfile && pnpm -r --filter './packages/*' --filter './services/*' build && pnpm --filter @zfloat/web build",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm -r --workspace-concurrency=1 --filter './packages/*' --filter './services/*' build && pnpm --filter @zfloat/web build",
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
