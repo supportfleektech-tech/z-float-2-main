@@ -2,10 +2,9 @@
   "buildCommand": "./scripts/vercel-build.sh",
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
-  "framework": null,
-  "functions": {
-    "apps/web/app/**/*.ts": {
-      "maxDuration": 30
-    }
+  "outputDirectory": "apps/web/.next",
+  "devDependencies": [],
+  "github": {
+    "enabled": false
   }
 }
