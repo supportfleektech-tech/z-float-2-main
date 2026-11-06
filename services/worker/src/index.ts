@@ -33,6 +33,7 @@ import {
   gcIdempotencyRecords,
   runReportScheduleDispatch,
   resumeInterruptedBatches,
+  processSyncJob,
 } from "./jobs.js";
 import { runOutboxPoller, handleOutboxEvent, expireStaleCollections } from "@zfloat/payments-core";
 import { retryQueuedDocuments } from "@zfloat/etims";
@@ -201,6 +202,15 @@ async function main() {
   );
   console.log('[worker] reports.generate worker started');
 
+  // ---- accounting.sync: sync payments, invoices, journals to external accounting ----
+  console.log('[worker] Starting accounting.sync worker...');
+  handles.push(
+    startWorker("accounting.sync", async (payload) => {
+      await processSyncJob(payload as any);
+    }),
+  );
+  console.log('[worker] accounting.sync worker started');
+
   // Startup stall recovery (see hourly sweep below): re-drive PROCESSING
   // batches that still have VALID rows (interrupted runs from a previous
   // worker lifetime).
@@ -293,6 +303,13 @@ async function main() {
           // eslint-disable-next-line no-console
           console.log(`[worker] report schedules: produced ${r.produced}, purged ${r.purged} artifact(s)`);
         }
+      } catch {
+        // next run
+      }
+      try {
+        // Periodic accounting sync for all active connections
+        const { schedulePeriodicSync } = await import("@zfloat/accounting");
+        await schedulePeriodicSync();
       } catch {
         // next run
       }

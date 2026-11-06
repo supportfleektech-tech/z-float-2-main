@@ -11,6 +11,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@zfloat/accounting": "workspace:*",
     "@zfloat/approvals": "workspace:*",
     "@zfloat/config": "workspace:*",
     "@zfloat/database": "workspace:*",

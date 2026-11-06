@@ -29,6 +29,7 @@ export const QUEUES = [
   "reports.generate",
   "payments.monitor",
   "webhooks.deliver",
+  "accounting.sync",
 ] as const;
 export type QueueName = (typeof QUEUES)[number];
 
@@ -73,6 +74,7 @@ export const QUEUE_POLICIES: Record<QueueName, { attempts: number; backoffDelayM
   "reports.generate": { attempts: 3, backoffDelayMs: 5_000, note: "heavy job; retry slow" },
   "payments.monitor": { attempts: 5, backoffDelayMs: 2_000, note: "stuck-payment sweep must eventually run" },
   "webhooks.deliver": { attempts: 5, backoffDelayMs: 2_000, note: "outbound fanout; own 4xx/5xx classification inside job" },
+  "accounting.sync": { attempts: 5, backoffDelayMs: 5_000, note: "accounting sync; external API rate limits, idempotent by sync log" },
 };
 
 /** Resolve the job options for a queue + caller overrides (pure, unit-tested). */

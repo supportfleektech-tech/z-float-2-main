@@ -19,6 +19,7 @@ import {
   withIdempotency,
 } from "@zfloat/payments-core";
 import { expireDueApprovals } from "@zfloat/approvals";
+import { processSyncJob } from "@zfloat/accounting";
 
 export {
   executePayment,
@@ -34,6 +35,7 @@ export {
 export const expireApprovals = expireDueApprovals;
 export { runReportScheduleDispatch } from "@zfloat/payments-core";
 export { gcIdempotencyRecords } from "@zfloat/payments-core";
+export { processSyncJob } from "@zfloat/accounting";
 
 /** Valid rows of a batch awaiting execution (chunked processing). */
 export async function getBatchRows(db: Db, batchId: string, limit = 200) {

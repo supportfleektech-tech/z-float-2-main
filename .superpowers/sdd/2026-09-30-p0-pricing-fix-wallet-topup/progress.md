@@ -41,6 +41,42 @@ P1-1: complete (commit 532f34d) — bulk upload accepts Openfloat CSV template c
 P1-2: complete (commit 72a506c) — supplier bank/paybill/till details + statements
 P1-3: complete (commit 37728f1) — expense mgmt: receipt upload, categories, ledgers, CSV export
 P1-4: complete (commit 28b4c9c) — live bills/airtime via aggregator
+P1-5: complete (commit b744734) — branches / multi-account switching with eTIMS branch IDs
+P1-6: complete (commit fa1ca5f) — Capacitor wrap for iOS/Android app stores
+P1-7: complete (commit a4f80b8) — payment confirmations via email + SMS
+P2-1: complete (commit a4f80b8) — full payroll: PAYE, SHIF, NSSF, Housing Levy, payslips, remittance files
+P2-2: complete (commit 8a11e98) — withholding tax automation + KRA eSlip payment
+P2-3: complete (commit 1969cd9) — budgets/spend limits per team/branch/employee + petty-cash sub-wallets
+P2-4: complete — approvals via WhatsApp/SMS/USSD with one-tap tokens
+P2-5: complete — accounting sync: QuickBooks, Xero, Zoho Books, Sage
+P2-6: complete (commit 18672c5) — 24/7 support: chat widget, phone callbacks, ticketing
+
+---
+
+## P0–P2 COMPLETE
+
+**P0 (Launch-critical):**
+- G1: Fixed pricing mismatch (banded flat fees, single source of truth)
+- G2: Instant M-PESA wallet top-up via STK
+
+**P1 (Feature parity with Openfloat):**
+- P1-1: Openfloat CSV template compatibility
+- P1-2: Supplier bank/paybill/till details + statements
+- P1-3: Expense mgmt (receipts, categories, ledgers, CSV export)
+- P1-4: Live bills/airtime via aggregator
+- P1-5: Branches / multi-account switching + eTIMS branch IDs
+- P1-6: Capacitor wrap for iOS/Android
+- P1-7: Payment confirmations (email + SMS, both parties)
+
+**P2 (Differentiation):**
+- P2-1: Full payroll (PAYE, SHIF, NSSF, Housing Levy, payslips, remittances)
+- P2-2: WHT automation + KRA eSlip payment
+- P2-3: Budgets/spend limits + petty-cash sub-wallets
+- P2-4: WhatsApp/SMS/USSD approvals with one-tap
+- P2-5: Accounting sync (QuickBooks, Xero, Zoho Books, Sage)
+- P2-6: 24/7 support (chat, callbacks, ticketing)
+
+P3 (Corporate cards, travel, expansion, working capital) — marked "later" in plan.
 
 ---
 

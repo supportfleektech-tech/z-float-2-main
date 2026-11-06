@@ -68,6 +68,26 @@ const envSchema = z.object({
   /** Sender id sent to the SMS gateway (Africa's Talking `from`). */
   SMS_FROM: z.string().default("Z-FLOAT"),
 
+  /** WhatsApp Business API (Meta) */
+  WHATSAPP_DRIVER: z.enum(["console", "meta"]).default("console"),
+  WHATSAPP_API_URL: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_TEMPLATE_APPROVAL: z.string().default("approval_request"),
+  WHATSAPP_TEMPLATE_APPROVAL_REMINDER: z.string().default("approval_reminder"),
+
+  /** USSD Gateway (e.g., Africa's Talking USSD) */
+  USSD_DRIVER: z.enum(["console", "africastalking"]).default("console"),
+  USSD_GATEWAY_URL: z.string().optional(),
+  USSD_USERNAME: z.string().optional(),
+  USSD_API_KEY: z.string().optional(),
+  USSD_SHORTCODE: z.string().optional(),
+
+  /** Approval token TTL (minutes) */
+  APPROVAL_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).default(60),
+
   /** Ops alerting (GAP-ANALYSIS Phase 4): comma-separated recipients for
    * health-rule alert notifications. Empty lists = alerts are evaluated and
    * recorded but nothing is sent (documented ops posture). */
@@ -135,6 +155,33 @@ const envSchema = z.object({
 
   BILLER_API_BASE_URL: z.string().optional(),
   BILLER_API_KEY: z.string().optional(),
+
+  /** QuickBooks Online */
+  QUICKBOOKS_CLIENT_ID: z.string().default(""),
+  QUICKBOOKS_CLIENT_SECRET: z.string().default(""),
+  QUICKBOOKS_REDIRECT_URI: z.string().default(""),
+  QUICKBOOKS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+
+  /** Xero */
+  XERO_CLIENT_ID: z.string().default(""),
+  XERO_CLIENT_SECRET: z.string().default(""),
+  XERO_REDIRECT_URI: z.string().default(""),
+
+  /** Zoho Books */
+  ZOHO_CLIENT_ID: z.string().default(""),
+  ZOHO_CLIENT_SECRET: z.string().default(""),
+  ZOHO_REDIRECT_URI: z.string().default(""),
+
+  /** Sage Accounting */
+  SAGE_CLIENT_ID: z.string().default(""),
+  SAGE_CLIENT_SECRET: z.string().default(""),
+  SAGE_REDIRECT_URI: z.string().default(""),
+
+  /** Xero webhook signing key */
+  XERO_WEBHOOK_KEY: z.string().default(""),
+
+  /** Accounting sync interval (ms) for cron job */
+  ACCOUNTING_SYNC_INTERVAL_MS: z.coerce.number().int().min(60000).default(3600000),
 
   MOCK_PROVIDER_BEHAVIOUR: z.enum(["success", "pending", "random", "fail"]).default("success"),
   MOCK_PROVIDER_LATENCY_MS: z.coerce.number().default(300),

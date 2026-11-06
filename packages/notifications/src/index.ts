@@ -1,16 +1,18 @@
 /**
- * Notification service — IN_APP, EMAIL and SMS channels.
+ * Notification service — IN_APP, EMAIL, SMS, WHATSAPP and USSD channels.
  *
- * Every notification is persisted (notifications table) first; EMAIL/SMS rows
+ * Every notification is persisted (notifications table) first; out-of-band channels
  * are then enqueued for the worker (notifications.send), which delivers via
  * the configured channel driver:
  *
- *   EMAIL: console | smtp (nodemailer) | sink (writes .eml-style JSON files)
- *   SMS:   console | http  (Africa's Talking–compatible JSON POST)
+ *   EMAIL:      console | smtp (nodemailer) | sink (writes .eml-style JSON files)
+ *   SMS:        console | http  (Africa's Talking–compatible JSON POST)
+ *   WHATSAPP:   console | meta  (Meta WhatsApp Business API)
+ *   USSD:       console | africastalking (Africa's Talking USSD gateway)
  *
- * Drivers are chosen by env (EMAIL_DRIVER / SMS_DRIVER) — never by callers.
- * Dispatch failures surface on the row (status + data.error) and are retried
- * by BullMQ (exponential backoff, default attempts).
+ * Drivers are chosen by env (EMAIL_DRIVER / SMS_DRIVER / WHATSAPP_DRIVER / USSD_DRIVER)
+ * — never by callers. Dispatch failures surface on the row (status + data.error)
+ * and are retried by BullMQ (exponential backoff, default attempts).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,7 +22,7 @@ import { getConfig } from "@zfloat/config";
 import { enqueue } from "@zfloat/queue";
 import nodemailer, { type Transporter } from "nodemailer";
 
-export type NotificationChannel = "IN_APP" | "EMAIL" | "SMS";
+export type NotificationChannel = "IN_APP" | "EMAIL" | "SMS" | "WHATSAPP" | "USSD";
 
 export interface SendNotificationInput {
   tenantId?: string;
@@ -65,7 +67,7 @@ export async function queueNotification(db: Db, input: SendNotificationInput): P
 
 export interface DispatchResult {
   ok: boolean;
-  /** Channel driver actually used (console|smtp|sink|http). */
+  /** Channel driver actually used (console|smtp|sink|http|meta|africastalking). */
   driver?: string;
   error?: string;
 }
@@ -94,6 +96,26 @@ export async function dispatchNotification(db: Db, notificationId: string): Prom
         const phone = String(data.phone ?? "") || (n.userId ? await phoneForUser(db, n.userId) : undefined);
         if (!phone) throw new Error("No recipient phone for SMS notification");
         driver = await sendSms(phone, n.body ?? "");
+        break;
+      }
+      case "WHATSAPP": {
+        const data = (n.data ?? {}) as Record<string, unknown>;
+        const phone = String(data.phone ?? "") || (n.userId ? await phoneForUser(db, n.userId) : undefined);
+        if (!phone) throw new Error("No recipient phone for WHATSAPP notification");
+        driver = await sendWhatsApp(
+          phone,
+          n.title ?? "",
+          n.body ?? "",
+          typeof data.templateCode === "string" ? data.templateCode : undefined,
+          Array.isArray(data.templateParams) ? data.templateParams as WhatsAppTemplateParam[] : undefined,
+        );
+        break;
+      }
+      case "USSD": {
+        const data = (n.data ?? {}) as Record<string, unknown>;
+        const phone = String(data.phone ?? "") || (n.userId ? await phoneForUser(db, n.userId) : undefined);
+        if (!phone) throw new Error("No recipient phone for USSD notification");
+        driver = await sendUssd(phone, n.body ?? "", typeof data.sessionId === "string" ? data.sessionId : undefined);
         break;
       }
     }
@@ -191,6 +213,136 @@ export function normalizeKenyanPhone(raw: string): string | null {
   if (digits.startsWith("0") && digits.length === 10) return `+254${digits.slice(1)}`;
   if (digits.length === 9) return `+254${digits}`;
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* WhatsApp drivers                                                    */
+/* ------------------------------------------------------------------ */
+
+interface WhatsAppTemplateParam {
+  type: "text" | "currency" | "date_time";
+  text?: string;
+  currency?: { fallback_value: string; code: string; amount_1000: number };
+  date_time?: { fallback_value: string };
+}
+
+async function sendWhatsApp(
+  phone: string,
+  title: string,
+  body: string,
+  templateCode?: string | null,
+  templateParams?: WhatsAppTemplateParam[] | null,
+): Promise<string> {
+  const config = getConfig();
+  const to = normalizeKenyanPhone(phone) ?? phone;
+  switch (config.WHATSAPP_DRIVER) {
+    case "meta": {
+      if (!config.WHATSAPP_API_URL) throw new Error("WHATSAPP_API_URL not configured for WHATSAPP_DRIVER=meta");
+      if (!config.WHATSAPP_PHONE_NUMBER_ID) throw new Error("WHATSAPP_PHONE_NUMBER_ID not configured");
+      if (!config.WHATSAPP_ACCESS_TOKEN) throw new Error("WHATSAPP_ACCESS_TOKEN not configured");
+
+      const url = `${config.WHATSAPP_API_URL}/${config.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+      const payload = templateCode
+        ? {
+            messaging_product: "whatsapp",
+            to: to.replace("+", ""),
+            type: "template",
+            template: {
+              name: templateCode,
+              language: { code: "en" },
+              components: templateParams
+                ? [
+                    {
+                      type: "body",
+                      parameters: templateParams.map((p) => {
+                        if (p.type === "text") return { type: "text", text: p.text };
+                        if (p.type === "currency")
+                          return { type: "currency", currency: p.currency };
+                        if (p.type === "date_time")
+                          return { type: "date_time", date_time: p.date_time };
+                        return { type: "text", text: String(p.text ?? "") };
+                      }),
+                    },
+                  ]
+                : [],
+            },
+          }
+        : {
+            messaging_product: "whatsapp",
+            to: to.replace("+", ""),
+            type: "text",
+            text: { body: `${title}\n\n${body}` },
+          };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.WHATSAPP_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`WhatsApp API HTTP ${res.status}: ${errText}`);
+      }
+      return "meta";
+    }
+    case "console":
+    default: {
+      // eslint-disable-next-line no-console
+      console.log(`[whatsapp:console] to=${to} template=${templateCode ?? "text"}: ${title}\n${body}`);
+      return "console";
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* USSD drivers                                                        */
+/* ------------------------------------------------------------------ */
+
+async function sendUssd(phone: string, body: string, sessionId?: string | null): Promise<string> {
+  const config = getConfig();
+  const to = normalizeKenyanPhone(phone) ?? phone;
+  switch (config.USSD_DRIVER) {
+    case "africastalking": {
+      if (!config.USSD_GATEWAY_URL) throw new Error("USSD_GATEWAY_URL not configured for USSD_DRIVER=africastalking");
+      if (!config.USSD_USERNAME) throw new Error("USSD_USERNAME not configured");
+      if (!config.USSD_API_KEY) throw new Error("USSD_API_KEY not configured");
+      if (!config.USSD_SHORTCODE) throw new Error("USSD_SHORTCODE not configured");
+
+      // Africa's Talking USSD push (initiates a USSD session to the user's phone)
+      const url = `${config.USSD_GATEWAY_URL}/version1/messaging`;
+      const payload = new URLSearchParams({
+        username: config.USSD_USERNAME,
+        to: to,
+        message: body,
+        shortCode: config.USSD_SHORTCODE,
+      });
+      if (sessionId) payload.append("sessionId", sessionId);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          apiKey: config.USSD_API_KEY,
+        },
+        body: payload.toString(),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`USSD gateway HTTP ${res.status}: ${errText}`);
+      }
+      return "africastalking";
+    }
+    case "console":
+    default: {
+      // eslint-disable-next-line no-console
+      console.log(`[ussd:console] to=${to} sessionId=${sessionId ?? "new"}: ${body}`);
+      return "console";
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -347,4 +499,222 @@ async function sendSms(phone: string, message: string): Promise<string> {
       return "console";
     }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Approval notification helpers                                       */
+/* ------------------------------------------------------------------ */
+
+export interface ApprovalNotificationDetails {
+  approvalRequestId: string;
+  approvalToken: string;
+  approvalUrl: string;
+  paymentNumber?: string;
+  batchName?: string;
+  beneficiaryName?: string;
+  reversalPaymentNumber?: string;
+  inviteEmail?: string;
+  inviteRole?: string;
+  amountMinor?: number | string | bigint;
+  currency?: string;
+  dueAt?: Date;
+  createdByName?: string;
+  tenantId?: string;
+}
+
+/**
+ * Send approval request notification to an approver via their preferred channels.
+ * Reads user's notification preferences and sends via enabled channels in priority order.
+ */
+export async function sendApprovalNotification(
+  db: Db,
+  approverId: string,
+  details: ApprovalNotificationDetails,
+): Promise<void> {
+  const config = getConfig();
+  const approver = await db.select().from(schema.users).where(eq(schema.users.id, approverId)).limit(1);
+  if (!approver[0]) throw new Error(`Approver ${approverId} not found`);
+
+  const prefs = await db
+    .select()
+    .from(schema.notificationPreferences)
+    .where(
+      eq(schema.notificationPreferences.userId, approverId),
+    )
+    .orderBy(schema.notificationPreferences.priority);
+
+  const phone = approver[0].phone;
+  const email = approver[0].email;
+
+  // Determine resource type and title/body
+  let title = "Approval Required";
+  let body = "";
+  let resourceType = "payment";
+
+  if (details.paymentNumber) {
+    resourceType = "payment";
+    const amountFormatted = details.amountMinor ? formatAmount(details.amountMinor, details.currency ?? "KES") : "";
+    body = `Payment ${details.paymentNumber} for ${amountFormatted} requires your approval.\n\nTap to approve: ${details.approvalUrl}\n\nExpires: ${details.dueAt ? formatDate(details.dueAt) : "N/A"}`;
+  } else if (details.batchName) {
+    resourceType = "batch";
+    body = `Batch "${details.batchName}" requires your approval.\n\nTap to approve: ${details.approvalUrl}\n\nExpires: ${details.dueAt ? formatDate(details.dueAt) : "N/A"}`;
+  } else if (details.beneficiaryName) {
+    resourceType = "beneficiary";
+    body = `New beneficiary "${details.beneficiaryName}" requires your approval.\n\nTap to approve: ${details.approvalUrl}\n\nExpires: ${details.dueAt ? formatDate(details.dueAt) : "N/A"}`;
+  } else if (details.reversalPaymentNumber) {
+    resourceType = "reversal";
+    body = `Reversal for payment ${details.reversalPaymentNumber} requires your approval.\n\nTap to approve: ${details.approvalUrl}\n\nExpires: ${details.dueAt ? formatDate(details.dueAt) : "N/A"}`;
+  } else if (details.inviteEmail) {
+    resourceType = "invite";
+    body = `Role invitation for ${details.inviteEmail} (${details.inviteRole}) requires your approval.\n\nTap to approve: ${details.approvalUrl}\n\nExpires: ${details.dueAt ? formatDate(details.dueAt) : "N/A"}`;
+  }
+
+  const eventType = "approval_requested";
+
+  // If no preferences set, default to IN_APP + SMS
+  const effectivePrefs = prefs.length > 0
+    ? prefs.filter((p) => p.enabled && p.eventType === eventType)
+    : [
+        { channel: "IN_APP" as NotificationChannel, enabled: true },
+        { channel: "SMS" as NotificationChannel, enabled: true },
+      ];
+
+  const sentChannels = new Set<string>();
+
+  for (const pref of effectivePrefs) {
+    if (sentChannels.has(pref.channel)) continue;
+
+    switch (pref.channel) {
+      case "IN_APP": {
+        await queueNotification(db, {
+          tenantId: details.tenantId,
+          userId: approverId,
+          channel: "IN_APP",
+          title,
+          body,
+          data: { ...details, resourceType, eventType },
+        });
+        sentChannels.add("IN_APP");
+        break;
+      }
+      case "EMAIL": {
+        if (email) {
+          await queueNotification(db, {
+            tenantId: details.tenantId,
+            userId: approverId,
+            channel: "EMAIL",
+            title,
+            body: `${body}\n\n---\nThis is an automated message from Z-float. Please do not reply to this email.`,
+            data: { ...details, to: email, resourceType, eventType },
+          });
+          sentChannels.add("EMAIL");
+        }
+        break;
+      }
+      case "SMS": {
+        if (phone) {
+          const smsBody = `${title}: ${body.slice(0, 160 - title.length - 3)}... Ref: ${details.approvalRequestId.slice(0, 8)}`;
+          await queueNotification(db, {
+            tenantId: details.tenantId,
+            userId: approverId,
+            channel: "SMS",
+            body: smsBody,
+            data: { ...details, phone, resourceType, eventType },
+          });
+          sentChannels.add("SMS");
+        }
+        break;
+      }
+      case "WHATSAPP": {
+        if (phone) {
+          const amountFormatted = details.amountMinor ? formatAmount(details.amountMinor, details.currency ?? "KES") : "";
+          await queueNotification(db, {
+            tenantId: details.tenantId,
+            userId: approverId,
+            channel: "WHATSAPP",
+            title,
+            body,
+            templateCode: config.WHATSAPP_TEMPLATE_APPROVAL,
+            data: {
+              ...details,
+              phone,
+              resourceType,
+              eventType,
+              templateParams: [
+                { type: "text", text: details.paymentNumber ?? details.batchName ?? details.beneficiaryName ?? details.reversalPaymentNumber ?? details.inviteEmail ?? "Request" },
+                { type: "text", text: amountFormatted || "N/A" },
+                { type: "text", text: details.approvalUrl },
+                { type: "text", text: details.dueAt ? formatDate(details.dueAt) : "N/A" },
+              ],
+            },
+          });
+          sentChannels.add("WHATSAPP");
+        }
+        break;
+      }
+      case "USSD": {
+        if (phone) {
+          await queueNotification(db, {
+            tenantId: details.tenantId,
+            userId: approverId,
+            channel: "USSD",
+            body: `Approval required: ${details.paymentNumber ?? details.batchName ?? details.beneficiaryName ?? "Request"}. Dial *${config.USSD_SHORTCODE ?? "123"}# to respond.`,
+            data: { ...details, phone, resourceType, eventType },
+          });
+          sentChannels.add("USSD");
+        }
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Send approval reminder notification (for pending approvals nearing expiry).
+ */
+export async function sendApprovalReminder(
+  db: Db,
+  approverId: string,
+  details: ApprovalNotificationDetails,
+): Promise<void> {
+  const config = getConfig();
+  const approver = await db.select().from(schema.users).where(eq(schema.users.id, approverId)).limit(1);
+  if (!approver[0]) return;
+
+  const phone = approver[0].phone;
+
+  const title = "Approval Reminder";
+  const body = `Reminder: You have a pending approval (${details.paymentNumber ?? details.batchName ?? "Request"}). Expires soon.\n\nTap to approve: ${details.approvalUrl}`;
+
+  // Send via WhatsApp if available (template-based)
+  if (phone) {
+    await queueNotification(db, {
+      tenantId: details.tenantId,
+      userId: approverId,
+      channel: "WHATSAPP",
+      title,
+      body,
+      templateCode: config.WHATSAPP_TEMPLATE_APPROVAL_REMINDER,
+      data: {
+        ...details,
+        phone,
+        resourceType: "reminder",
+        eventType: "approval_reminder",
+        templateParams: [
+          { type: "text", text: details.paymentNumber ?? details.batchName ?? "Request" },
+          { type: "text", text: details.approvalUrl },
+        ],
+      },
+    });
+  }
+
+  // Also send IN_APP reminder
+  await queueNotification(db, {
+    tenantId: details.tenantId,
+    userId: approverId,
+    channel: "IN_APP",
+    title,
+    body,
+    data: { ...details, resourceType: "reminder", eventType: "approval_reminder" },
+  });
 }

@@ -18,15 +18,16 @@
  * stays unpublished (attempts++ via markFailed) and is retried on a later
  * tick up to the attempts cap enforced by pullUnpublished.
  */
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { schema, type Db } from "@zfloat/database";
 import { enqueue } from "@zfloat/queue";
-import { queueNotification, sendPaymentConfirmation, getUserContact } from "@zfloat/notifications";
+import { queueNotification, sendPaymentConfirmation, getUserContact, sendApprovalNotification } from "@zfloat/notifications";
 import { markBatchRowOutcome, refreshBatchStatus } from "./bulk.js";
 import { fanoutWebhookDeliveries } from "./outbound.js";
 import { markFailed, markPublished, pullUnpublished } from "./outbox.js";
 import { EtimsError, fiscaliseDocument, issueReceiptForCollection } from "@zfloat/etims";
 import { getConfig } from "@zfloat/config";
+import { createApprovalTokensAndNotify } from "@zfloat/approvals";
 
 /** Advisory-lock key shared by every relay/worker deployment (arbitrary int8). Default: 723993001. Configurable via OUTBOX_RELAY_LEASE_KEY env var. */
 export function getOutboxRelayLeaseKey(): number {
@@ -164,6 +165,17 @@ export async function handleOutboxEvent(db: Db, event: OutboxEventRef): Promise<
               payerName: payerContact.name,
               tenantId: event.tenantId ?? undefined,
             });
+          }
+        }
+      } else {
+        // payment.approval_requested: create approval tokens and send notifications
+        const approvalRequestId = String(payload.approvalRequestId ?? "");
+        if (approvalRequestId && event.tenantId) {
+          try {
+            await createApprovalTokensAndNotify(db, approvalRequestId);
+          } catch (err) {
+            // Log but don't fail the outbox event - tokens can be created later
+            console.error(`[outbox] Failed to create approval tokens for ${approvalRequestId}:`, err);
           }
         }
       }

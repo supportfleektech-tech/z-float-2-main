@@ -1,0 +1,43 @@
+{
+  "name": "@zfloat/payroll",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./rates": {
+      "import": "./dist/rates.js",
+      "types": "./dist/rates.d.ts"
+    },
+    "./service": {
+      "import": "./dist/service.js",
+      "types": "./dist/service.d.ts"
+    },
+    "./payslips": {
+      "import": "./dist/payslips.js",
+      "types": "./dist/payslips.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@zfloat/database": "workspace:*",
+    "@zfloat/money": "workspace:*",
+    "@zfloat/approvals": "workspace:*",
+    "@zfloat/payments-core": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "pdfkit": "^0.15.0"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.13.4",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -19,6 +19,8 @@
   "dependencies": {
     "@zfloat/database": "workspace:*",
     "@zfloat/money": "workspace:*",
+    "@zfloat/config": "workspace:*",
+    "@zfloat/notifications": "workspace:*",
     "drizzle-orm": "^0.36.4",
     "zod": "^3.23.8",
     "@zfloat/audit": "workspace:*"
