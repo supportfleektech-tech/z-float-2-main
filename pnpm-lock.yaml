@@ -181,6 +181,9 @@ importers:
 
   packages/accounting:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@zfloat/config':
         specifier: workspace:*
         version: link:../config
@@ -200,9 +203,6 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -312,19 +312,25 @@ importers:
 
   packages/config:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       zod:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
 
   packages/database:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.23.1
       '@zfloat/auth':
         specifier: workspace:*
         version: link:../auth
@@ -353,12 +359,6 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
-      '@types/pg':
-        specifier: ^8.11.10
-        version: 8.23.1
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -377,6 +377,9 @@ importers:
 
   packages/etims:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@zfloat/auth':
         specifier: workspace:*
         version: link:../auth
@@ -396,9 +399,6 @@ importers:
         specifier: ^0.36.4
         version: 0.36.4(@types/pg@8.23.1)(@types/react@18.3.31)(pg@8.23.1)(react@18.3.1)
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       '@zfloat/ledger':
         specifier: workspace:*
         version: link:../ledger
@@ -470,6 +470,12 @@ importers:
 
   packages/notifications:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      '@types/nodemailer':
+        specifier: ^6.4.0
+        version: 6.4.24
       '@zfloat/config':
         specifier: workspace:*
         version: link:../config
@@ -486,9 +492,6 @@ importers:
         specifier: ^6.9.14
         version: 6.10.1
     devDependencies:
-      '@types/nodemailer':
-        specifier: ^6.4.15
-        version: 6.4.24
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -605,6 +608,9 @@ importers:
 
   packages/providers:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@zfloat/config':
         specifier: workspace:*
         version: link:../config
@@ -615,9 +621,6 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -627,6 +630,9 @@ importers:
 
   packages/queue:
     dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@valkey/valkey-glide':
         specifier: ^2.5.2
         version: 2.5.3
@@ -643,9 +649,6 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -658,19 +661,19 @@ importers:
       '@aws-sdk/client-kms':
         specifier: ^3.600.0
         version: 3.1145.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
     devDependencies:
-      '@types/node':
-        specifier: ^20.14.0
-        version: 20.19.43
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
       vitest:
         specifier: ^2.1.0
-        version: 2.1.9(@types/node@20.19.43)
+        version: 2.1.9(@types/node@22.20.5)
 
   packages/storage:
     dependencies:
@@ -680,13 +683,13 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.658.0
         version: 3.1145.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       '@zfloat/config':
         specifier: workspace:*
         version: link:../config
     devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1

@@ -17,6 +17,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@types/node": "^22.0.0",
     "@valkey/valkey-glide": "^2.5.2",
     "@zfloat/config": "workspace:*",
     "bullmq": "^5.34.0",
@@ -24,7 +25,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.9"
   }

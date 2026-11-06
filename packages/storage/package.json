@@ -12,12 +12,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@types/node": "^22.0.0",
     "@aws-sdk/client-s3": "^3.658.0",
     "@aws-sdk/s3-request-presigner": "^3.658.0",
     "@zfloat/config": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.0",
     "dotenv": "^16.4.5"
