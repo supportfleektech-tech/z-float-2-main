@@ -2,9 +2,5 @@
   "buildCommand": "./scripts/vercel-build.sh",
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "apps/web/.next",
-  "devDependencies": [],
-  "github": {
-    "enabled": false
-  }
+  "outputDirectory": "apps/web/.next"
 }
