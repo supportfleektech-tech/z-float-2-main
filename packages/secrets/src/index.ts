@@ -48,6 +48,11 @@ import path from "node:path";
 // module is also loaded by the web app's edge runtime bundle (instrumentation
 // guard), which must never include the SDK.
 
+/** In-memory cache for secrets vault fallback. */
+declare global {
+  var __ZFLOAT_SECRETS_CACHE__: Record<string, string> | undefined;
+}
+
 /* ------------------------------------------------------------------ types */
 
 export type SecretsDriver = "none" | "local" | "kms";
