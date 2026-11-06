@@ -109,6 +109,8 @@ const envSchema = z.object({
   OUTBOX_RELAY_INTERVAL_MS: z.coerce.number().int().min(200).default(5000),
   /** Advisory lock key for outbox relay lease arbitration (shared by worker + relay). */
   OUTBOX_RELAY_LEASE_KEY: z.coerce.number().int().default(723993001),
+  /** PostgreSQL connection pool size. Default scales with worker concurrency. */
+  DATABASE_POOL_SIZE: z.coerce.number().int().min(2).default(20),
 
   PROVIDER_DEFAULT: z.string().default("local-sandbox"),
 

@@ -11,10 +11,14 @@ export { schema };
 export function createDb(databaseUrl?: string): { db: Db; pool: Pool } {
   const config = getConfig();
   const url = databaseUrl ?? (config.IS_TEST ? config.DATABASE_URL_TEST : config.DATABASE_URL);
+  const isProduction = config.NODE_ENV === "production" || config.NODE_ENV === "staging";
   const pool = new Pool({
     connectionString: url,
-    max: 10,
+    max: config.DATABASE_POOL_SIZE,
     connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: isProduction ? 30_000 : 0, // close idle in prod
+    maxUses: isProduction ? 7500 : 0, // recycle after N uses to prevent memory leaks
+    allowExitOnIdle: true,
   });
   // Keep idle/errored clients from becoming uncaught 'error' events. Without
   // this listener, a Postgres outage (or a dying connection) crashes the whole
