@@ -7,3 +7,11 @@ export {
   type ObservabilityInput,
   type QueueBacklog,
 } from "./alerts.js";
+
+export {
+  logger,
+  createChildLogger,
+  logError,
+  withSpan,
+  initTelemetry,
+} from "./logger.js";
