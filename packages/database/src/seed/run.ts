@@ -47,8 +47,8 @@ async function loadPaymentsCore() {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadDotenv({ path: path.resolve(__dirname, "../../../../.env"), quiet: true });
 
-const DEMO_EMAIL = "demo@zfloat.app";
-const DEMO_PASSWORD = "Demo@12345";
+const DEMO_EMAIL = process.env.DEMO_EMAIL ?? "demo@zfloat.app";
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@12345";
 
 const KES = (v: string) => BigInt(Math.round(Number(v) * 100));
 

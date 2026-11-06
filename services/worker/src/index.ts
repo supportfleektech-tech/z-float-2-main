@@ -44,14 +44,41 @@ loadDotenv({ path: path.resolve(__dirname, "../../../.env"), quiet: true });
 
 // Secrets vault: apply KMS/local envelope secrets to process.env BEFORE any
 // config parsing or adapter construction reads env vars. Explicit env values
-// always win, so local development is unaffected. Fail closed on vault errors.
-try {
-  await applySecretsToEnv();
-} catch (err) {
+// always win, so local development is unaffected. Retry with exponential backoff,
+// then fall back to in-process cached secrets (if available) before failing.
+async function loadSecretsWithRetry(maxRetries = 3, baseDelayMs = 1000): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await applySecretsToEnv();
+      return;
+    } catch (err) {
+      const isLastAttempt = attempt === maxRetries;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[worker] secrets vault attempt ${attempt}/${maxRetries} failed: ${err instanceof Error ? err.message : err}${isLastAttempt ? "" : ` — retrying in ${delay}ms`}`
+      );
+      if (!isLastAttempt) {
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  // All retries exhausted — check for cached secrets in memory (set by previous successful load)
+  const cached = globalThis.__ZFLOAT_SECRETS_CACHE__;
+  if (cached && typeof cached === "object") {
+    // eslint-disable-next-line no-console
+    console.warn("[worker] secrets vault unavailable — using in-memory cached secrets (TTL not enforced, rotate ASAP)");
+    for (const [key, value] of Object.entries(cached)) {
+      if (!process.env[key]) process.env[key] = String(value);
+    }
+    return;
+  }
   // eslint-disable-next-line no-console
-  console.error("[worker] secrets vault failure — refusing to start:", err);
+  console.error("[worker] secrets vault failure after retries and no cache — refusing to start");
   process.exit(1);
 }
+
+await loadSecretsWithRetry();
 
 const registry = createProviderRegistry();
 

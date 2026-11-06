@@ -367,6 +367,13 @@ export async function applySecretsToEnv(
     }
     env[name] = plain;
     summary.applied.push(name);
+    // Cache in memory for fallback if vault becomes unavailable
+    if (typeof globalThis !== "undefined") {
+      globalThis.__ZFLOAT_SECRETS_CACHE__ = {
+        ...(globalThis.__ZFLOAT_SECRETS_CACHE__ ?? {}),
+        [name]: plain,
+      };
+    }
   }
   return summary;
 }

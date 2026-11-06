@@ -284,6 +284,11 @@ export function loadConfig(options: ConfigOptions = {}): AppEnv {
     if (source.ETIMS_ENVIRONMENT === "production" && (source.ETIMS_DRIVER ?? "sandbox") === "sandbox") {
       throw new Error("[config] ETIMS_ENVIRONMENT=production requires ETIMS_DRIVER=oscu or vscu (the sandbox signer is not fiscal).");
     }
+    // DEMO_MODE must be false in production/staging — demo behaviours (raw-token
+    // invite bridge, built-in demo approval policy) are unsafe for real traffic.
+    if (source.DEMO_MODE === "true") {
+      throw new Error("[config] DEMO_MODE must be false in production/staging. Use a separate demo deployment.");
+    }
   }
 
   const parsed = envSchema.safeParse(source);

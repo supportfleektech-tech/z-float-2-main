@@ -666,6 +666,10 @@ export const payments = pgTable(
     index("payments_tenant_status_idx").on(t.tenantId, t.status),
     index("payments_wallet_idx").on(t.sourceWalletId),
     index("payments_created_idx").on(t.createdAt),
+    // Composite indexes for common filter patterns
+    index("payments_tenant_status_created_idx").on(t.tenantId, t.status, t.createdAt),
+    index("payments_tenant_channel_created_idx").on(t.tenantId, t.channel, t.createdAt),
+    index("payments_tenant_batch_idx").on(t.tenantId, t.batchId),
   ],
 );
 
@@ -1441,7 +1445,13 @@ export const auditEvents = pgTable(
     correlationId: varchar("correlation_id", { length: 64 }),
     createdAt: createdAt(),
   },
-  (t) => [index("audit_events_tenant_idx").on(t.tenantId), index("audit_events_resource_idx").on(t.resourceType, t.resourceId), index("audit_events_created_idx").on(t.createdAt)],
+  (t) => [
+    index("audit_events_tenant_idx").on(t.tenantId),
+    index("audit_events_resource_idx").on(t.resourceType, t.resourceId),
+    index("audit_events_created_idx").on(t.createdAt),
+    index("audit_events_correlation_idx").on(t.correlationId),
+    index("audit_events_actor_idx").on(t.actorId),
+  ],
 );
 
 export const securityEvents = pgTable(
@@ -1809,7 +1819,11 @@ export const outboxEvents = pgTable(
     lastError: text("last_error"),
     createdAt: createdAt(),
   },
-  (t) => [index("outbox_events_unpublished_idx").on(t.publishedAt)],
+  (t) => [
+    index("outbox_events_unpublished_idx").on(t.publishedAt),
+    index("outbox_events_tenant_status_created_idx").on(t.tenantId, t.publishedAt, t.createdAt),
+    index("outbox_events_event_type_idx").on(t.eventType),
+  ],
 );
 
 export const idempotencyRecords = pgTable(
@@ -1850,6 +1864,8 @@ export const webhookEvents = pgTable(
   (t) => [
     index("webhook_events_provider_event_uidx").on(t.providerId, t.providerEventId),
     index("webhook_events_status_idx").on(t.status),
+    index("webhook_events_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("webhook_events_tenant_status_idx").on(t.tenantId, t.status),
   ],
 );
 
