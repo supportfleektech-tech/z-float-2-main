@@ -22,7 +22,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@types/dotenv": "^8.2.0",
     "@types/pg": "^8.11.0",
     "@types/node": "^22.0.0",
     "@zfloat/auth": "workspace:*",
