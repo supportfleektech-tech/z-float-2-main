@@ -7,7 +7,12 @@ import { MpesaProviderAdapter } from "./mpesa.js";
 import type { PaymentProvider } from "./types.js";
 
 export { type PaymentProvider } from "./types.js";
-export { type CircuitState, type CircuitBreakerConfig, type CircuitBreakerState } from "./circuit-breaker.js";
+export { type C2BConfirmation } from "./types.js";
+export { type CollectionProvider } from "./types.js";
+export { type ProviderPaymentResult } from "./types.js";
+export { type ProviderPaymentInput } from "./types.js";
+export { type ProviderResultStatus } from "./types.js";
+export { type ProviderError } from "./types.js";
 export { MockProvider, MockBehaviour } from "./mock.js";
 export { MpesaProviderAdapter, parseC2BConfirmation, parseStkCallbackMetadata, toDarajaMsisdn, darajaTimestamp } from "./mpesa.js";
 export { BankProviderAdapter } from "./bank.js";
