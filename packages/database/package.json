@@ -16,6 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
+    "db:migrate:down": "tsx src/migrate.ts --down",
+    "db:migrate:down:target": "tsx src/migrate.ts --down --target",
     "db:migrate:test": "DATABASE_URL=$DATABASE_URL_TEST tsx src/migrate.ts",
     "db:seed": "tsx src/seed/run.ts",
     "db:reset": "tsx src/reset.ts",

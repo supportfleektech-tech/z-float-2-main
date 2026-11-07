@@ -398,7 +398,7 @@ async function sendPettyCashAlert(
   return sent;
 }
 
-function formatAmount(minor: bigint): string {
+export function formatAmount(minor: bigint): string {
   const major = Number(minor / 100n);
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(major);
 }

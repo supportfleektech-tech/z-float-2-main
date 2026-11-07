@@ -30,14 +30,21 @@
     "start:relay": "pnpm --filter @zfloat/outbox-relay start",
     "secrets": "tsx packages/secrets/src/cli.ts",
     "evidence": "tsx scripts/compliance/collect-evidence.ts",
-    "check:creds": "tsx scripts/check-credentials.ts"
+    "check:creds": "tsx scripts/check-credentials.ts",
+    "analyze": "pnpm --filter @zfloat/web analyze",
+    "analyze:bundle": "ANALYZE=true pnpm --filter @zfloat/web build"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^14.2.15",
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.9.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "next": "^14.2.15",
     "prettier": "^3.3.0",
     "tsx": "^4.23.13",

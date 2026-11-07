@@ -411,3 +411,57 @@ Records of processing, data inventory → system mapping, processor (DPA)
 terms, DSAR 30-day procedure, and 72-hour breach notification:
 `docs/compliance/odpc-dpa-pack.md`. Run `pnpm evidence` before/after any
 incident so `security_events` rows document the response.
+
+## RB-19 Secret Rotation Schedule
+
+**When:** Quarterly (or immediately after security incident, credential leak, or personnel changes).
+
+### Rotation Cadence
+| Secret Type | Frequency | Method | Owner |
+|-------------|-----------|--------|-------|
+| API keys (MPesa, Bank, eTIMS) | 90 days | `pnpm secrets set` with KMS driver | Platform Admin |
+| ENCRYPTION_KEY | 180 days | Generate new 64-hex, rotate all envelopes | Platform Admin |
+| SESSION_SECRET | 180 days | Generate new 32+ char, rotate all sessions | Platform Admin |
+| SECRETS_LOCAL_KEY (dev) | 365 days | `pnpm secrets gen-key`, re-seal all local | DevOps |
+| Database password | 90 days | pgAdmin/CLI, update connection strings | DevOps |
+| Redis password | 90 days | Valkey config, update clients | DevOps |
+| SMTP credentials | 180 days | Provider portal, update env | Platform Admin |
+| Webhook signing secrets | 90 days | `pnpm secrets set` per subscription | Platform Admin |
+
+### Rotation Procedure
+```bash
+# 1. Generate new secret
+NEW_KEY=$(openssl rand -hex 32)
+
+# 2. Update envelope (KMS driver for production)
+pnpm secrets set MPESA_CONSUMER_SECRET "$NEW_KEY" --comment "Quarterly rotation $(date +%F)" --driver kms
+
+# 3. Restart services to pick up new secret
+# - Web app: pnpm --filter @zfloat/web restart
+# - Worker: pnpm --filter @zfloat/worker restart
+# - Outbox relay: pnpm --filter @zfloat/outbox-relay restart
+
+# 4. Verify health endpoint shows no secret errors
+curl -H "Cookie: <admin-session>" http://localhost:3000/api/admin/health
+
+# 5. Test a sandbox payment to confirm provider auth works
+```
+
+### Automated Rotation Cron (Production)
+Add to platform admin crontab (runs at 03:00 UTC on first day of quarter):
+
+```bash
+# Quarterly secret rotation reminder (sends alert, doesn't auto-rotate)
+0 3 1 1,4,7,10 * /home/user/zfloat/scripts/secret-rotation-reminder.sh
+
+# Monthly credential audit
+0 2 1 * * /home/user/zfloat/scripts/credential-audit.sh >> /var/log/zfloat/credential-audit.log 2>&1
+```
+
+### Emergency Rotation
+If credential leak detected (RB-08):
+1. Immediately rotate affected secret(s)
+2. Revoke all sessions for affected users
+3. Force re-authentication
+4. Audit `security_events` + `login_events` for the window
+4. Document in incident report

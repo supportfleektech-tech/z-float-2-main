@@ -11,6 +11,7 @@ export const createdAt = () => timestamp("created_at", { withTimezone: true }).d
  */
 export const updatedAt = () =>
   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date());
+export const deletedAt = () => timestamp("deleted_at", { withTimezone: true });
 /** Money in integer minor units (cents). bigint — never floats. */
 export const minor = (name: string) => bigint(name, { mode: "bigint" });
 export const tenantId = () => uuid("tenant_id");
@@ -41,10 +42,12 @@ export const users = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     uniqueIndex("users_email_tenant_uidx").on(t.tenantId, t.email),
     index("users_email_idx").on(t.email),
+    index("users_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -86,8 +89,12 @@ export const roles = pgTable(
     description: text("description"),
     isSystem: boolean("is_system").notNull().default(false),
     createdAt: createdAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [uniqueIndex("roles_scope_name_uidx").on(t.scope, t.name)],
+  (t) => [
+    uniqueIndex("roles_scope_name_uidx").on(t.scope, t.name),
+    index("roles_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const permissions = pgTable(
@@ -98,8 +105,12 @@ export const permissions = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
     createdAt: createdAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [uniqueIndex("permissions_code_uidx").on(t.code)],
+  (t) => [
+    uniqueIndex("permissions_code_uidx").on(t.code),
+    index("permissions_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const rolePermissions = pgTable(
@@ -142,8 +153,12 @@ export const invitations = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     createdAt: createdAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [uniqueIndex("invitations_token_hash_uidx").on(t.tokenHash)],
+  (t) => [
+    uniqueIndex("invitations_token_hash_uidx").on(t.tokenHash),
+    index("invitations_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const loginEvents = pgTable(
@@ -182,8 +197,12 @@ export const tenants = pgTable(
     settings: jsonb("settings").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [uniqueIndex("tenants_slug_uidx").on(t.slug)],
+  (t) => [
+    uniqueIndex("tenants_slug_uidx").on(t.slug),
+    index("tenants_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const branches = pgTable(
@@ -204,12 +223,14 @@ export const branches = pgTable(
     isDefault: boolean("is_default").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     uniqueIndex("branches_tenant_code_uidx").on(t.tenantId, t.code),
     uniqueIndex("branches_tenant_default_uidx").on(t.tenantId).where(sql`${t.isDefault} = true`),
     index("branches_tenant_idx").on(t.tenantId),
     index("branches_tenant_etims_idx").on(t.tenantId, t.etimsBranchId),
+    index("branches_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -251,8 +272,13 @@ export const wallets = pgTable(
     status: varchar("status", { length: 30 }).notNull().default("ACTIVE"), // ACTIVE | FROZEN | CLOSED
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [index("wallets_tenant_idx").on(t.tenantId), index("wallets_branch_idx").on(t.branchId)],
+  (t) => [
+    index("wallets_tenant_idx").on(t.tenantId),
+    index("wallets_branch_idx").on(t.branchId),
+    index("wallets_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -290,12 +316,14 @@ export const budgets = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     index("budgets_tenant_idx").on(t.tenantId),
     index("budgets_scope_idx").on(t.tenantId, t.scope, t.scopeRef),
     index("budgets_period_idx").on(t.tenantId, t.periodStart, t.periodEnd),
     index("budgets_status_idx").on(t.tenantId, t.status),
+    index("budgets_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -313,10 +341,12 @@ export const budgetItems = pgTable(
     committedMinor: minor("committed_minor").notNull().default(sql`0`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     index("budget_items_budget_idx").on(t.budgetId),
     uniqueIndex("budget_items_budget_cat_uidx").on(t.budgetId, t.category, t.subCategory),
+    index("budget_items_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -342,12 +372,14 @@ export const spendLimits = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     index("spend_limits_tenant_idx").on(t.tenantId),
     index("spend_limits_entity_idx").on(t.tenantId, t.entityType, t.entityId),
     index("spend_limits_period_idx").on(t.tenantId, t.periodStart, t.periodEnd),
     uniqueIndex("spend_limits_entity_cat_uidx").on(t.tenantId, t.entityType, t.entityId, t.category, t.subCategory, t.periodStart),
+    index("spend_limits_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -379,12 +411,14 @@ export const pettyCashWallets = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     index("petty_cash_wallets_tenant_idx").on(t.tenantId),
     index("petty_cash_wallets_parent_idx").on(t.parentWalletId),
     index("petty_cash_wallets_employee_idx").on(t.employeeId),
     index("petty_cash_wallets_branch_idx").on(t.branchId),
+    index("petty_cash_wallets_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -445,12 +479,14 @@ export const beneficiaries = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
   (t) => [
     index("beneficiaries_tenant_idx").on(t.tenantId),
     index("beneficiaries_phone_idx").on(t.phone),
     index("beneficiaries_tenant_kra_idx").on(t.tenantId, t.kraPin),
     index("beneficiaries_tenant_idno_idx").on(t.tenantId, t.idNumber),
+    index("beneficiaries_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -659,6 +695,7 @@ export const payments = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     version: integer("version").notNull().default(1),
+    deletedAt: deletedAt(),
   },
   (t) => [
     uniqueIndex("payments_idem_key_uidx").on(t.tenantId, t.idempotencyKey),
@@ -670,6 +707,7 @@ export const payments = pgTable(
     index("payments_tenant_status_created_idx").on(t.tenantId, t.status, t.createdAt),
     index("payments_tenant_channel_created_idx").on(t.tenantId, t.channel, t.createdAt),
     index("payments_tenant_batch_idx").on(t.tenantId, t.batchId),
+    index("payments_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
   ],
 );
 
@@ -706,8 +744,12 @@ export const paymentBatches = pgTable(
     idempotencyKey: varchar("idempotency_key", { length: 128 }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [index("payment_batches_tenant_idx").on(t.tenantId)],
+  (t) => [
+    index("payment_batches_tenant_idx").on(t.tenantId),
+    index("payment_batches_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const paymentBatchRows = pgTable(
@@ -1118,8 +1160,12 @@ export const approvalPolicies = pgTable(
     createdById: uuid("created_by_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [index("approval_policies_tenant_idx").on(t.tenantId)],
+  (t) => [
+    index("approval_policies_tenant_idx").on(t.tenantId),
+    index("approval_policies_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const approvalPolicyVersions = pgTable("approval_policy_versions", {
@@ -1162,8 +1208,12 @@ export const approvalRequests = pgTable(
     executionError: text("execution_error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    deletedAt: deletedAt(),
   },
-  (t) => [index("approval_requests_tenant_status_idx").on(t.tenantId, t.status)],
+  (t) => [
+    index("approval_requests_tenant_status_idx").on(t.tenantId, t.status),
+    index("approval_requests_deleted_at_idx").on(t.deletedAt).where(sql`${t.deletedAt} IS NOT NULL`),
+  ],
 );
 
 export const approvalSteps = pgTable(

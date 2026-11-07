@@ -1,0 +1,312 @@
+{
+  "title": "Z-float SLO Dashboard",
+  "description": "Service Level Objectives for Z-float payment platform",
+  "timezone": "Africa/Nairobi",
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "API Availability (SLO: 99.9%)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"2..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 99.5, "color": "yellow" },
+              { "value": 99.9, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Payment Success Rate (SLO: 99.5%)",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(payments_total{status=\"SUCCESS\"}[5m])) / sum(rate(payments_total[5m])) * 100",
+          "legendFormat": "Success Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 99.0, "color": "yellow" },
+              { "value": 99.5, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Payment Latency p99 (SLO: < 5s)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(payment_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "seconds",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 3, "color": "yellow" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Webhook Delivery Success Rate (SLO: 99.9%)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(webhook_deliveries_total{status=\"DELIVERED\"}[5m])) / sum(rate(webhook_deliveries_total[5m])) * 100",
+          "legendFormat": "Delivery Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 99.5, "color": "yellow" },
+              { "value": 99.9, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Worker Heartbeat Age (SLO: < 120s)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "worker_heartbeat_age_seconds",
+          "legendFormat": "Heartbeat Age"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "seconds",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 60, "color": "yellow" },
+              { "value": 120, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Outbox Lag (SLO: < 1000 events)",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "outbox_unpublished_events",
+          "legendFormat": "Unpublished Events"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 100, "color": "yellow" },
+              { "value": 1000, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "API Availability Over Time",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"2..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 95,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Payment Success Rate Over Time",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(payments_total{status=\"SUCCESS\"}[5m])) / sum(rate(payments_total[5m])) * 100",
+          "legendFormat": "Success Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 95,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Payment Latency Distribution",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(payment_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(payment_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(payment_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "seconds"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Queue Backlogs (Critical Queues)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(queue_waiting{queue=~\"payments\\.execution|batches\\.execution|files\\.scan|webhooks\\.deliver|notifications\\.send\"}) by (queue)",
+          "legendFormat": "{{queue}} waiting"
+        },
+        {
+          "expr": "sum(queue_active{queue=~\"payments\\.execution|batches\\.execution|files\\.scan|webhooks\\.deliver|notifications\\.send\"}) by (queue)",
+          "legendFormat": "{{queue}} active"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Database Connection Pool",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "db_pool_total",
+          "legendFormat": "Total"
+        },
+        {
+          "expr": "db_pool_idle",
+          "legendFormat": "Idle"
+        },
+        {
+          "expr": "db_pool_waiting",
+          "legendFormat": "Waiting"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "System Resources",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "disk_usage_percent",
+          "legendFormat": "Disk Usage %"
+        },
+        {
+          "expr": "memory_heap_used_percent",
+          "legendFormat": "Heap Used %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
+      }
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Deployments",
+        "datasource": "prometheus",
+        "expr": "deployment_timestamp",
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "enable": true
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "type": "query",
+        "datasource": "prometheus",
+        "query": "label_values(payments_total, tenant_id)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  }
+}

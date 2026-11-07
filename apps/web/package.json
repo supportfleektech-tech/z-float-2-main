@@ -11,6 +11,7 @@
     "lint": "next lint",
     "test:e2e": "playwright test",
     "test": "vitest run",
+    "analyze": "ANALYZE=true next build",
     "cap:init": "cap init zfloat com.zfloat.app --web-dir=out",
     "cap:add:ios": "cap add ios",
     "cap:add:android": "cap add android",
@@ -28,6 +29,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@zfloat/accounting": "workspace:*",
     "@zfloat/approvals": "workspace:*",
     "@zfloat/audit": "workspace:*",
     "@zfloat/auth": "workspace:*",
@@ -46,7 +48,6 @@
     "@zfloat/storage": "workspace:*",
     "@zfloat/support": "workspace:*",
     "@zfloat/validation": "workspace:*",
-    "@zfloat/accounting": "workspace:*",
     "autoprefixer": "^10.4.20",
     "drizzle-orm": "^0.36.4",
     "eslint": "^8.57.1",
@@ -63,6 +64,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "6.2.0",
+    "@next/bundle-analyzer": "^16.4.5",
     "@playwright/test": "^1.47.0",
     "vitest": "^2.1.8"
   }

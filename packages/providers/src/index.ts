@@ -6,13 +6,14 @@ import { MockProvider } from "./mock.js";
 import { MpesaProviderAdapter } from "./mpesa.js";
 import type { PaymentProvider } from "./types.js";
 
-export * from "./types.js";
+export type * from "./types.js";
 export { MockProvider, MockBehaviour } from "./mock.js";
 export { MpesaProviderAdapter, parseC2BConfirmation, parseStkCallbackMetadata, toDarajaMsisdn, darajaTimestamp } from "./mpesa.js";
 export { BankProviderAdapter } from "./bank.js";
 export { AirtimeProviderAdapter } from "./airtime.js";
 export { BillerAggregatorProvider } from "./biller.js";
-export * from "./circuit-breaker.js";
+export { CircuitBreaker, getCircuitBreaker, resetAllCircuitBreakers, getAllCircuitBreakerStates } from "./circuit-breaker.js";
+export type { CircuitState, CircuitBreakerConfig, CircuitBreakerState } from "./circuit-breaker.js";
 
 export interface ProviderRegistry {
   get(code: string): PaymentProvider;
