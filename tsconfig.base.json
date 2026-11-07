@@ -19,5 +19,5 @@
     "incremental": true,
     "tsBuildInfoFile": "node_modules/.cache/.tsbuildinfo"
   },
-  "exclude": ["node_modules", "dist", ".next", "coverage", "playwright-report", "test-results"]
+  "exclude": ["node_modules", "dist", ".next", "coverage", "playwright-report", "test-results", "**/dist"]
 }

@@ -19,7 +19,7 @@ export { BankProviderAdapter } from "./bank.js";
 export { AirtimeProviderAdapter } from "./airtime.js";
 export { BillerAggregatorProvider } from "./biller.js";
 export { CircuitBreaker, getCircuitBreaker, resetAllCircuitBreakers, getAllCircuitBreakerStates } from "./circuit-breaker.js";
-export type { CircuitState, CircuitBreakerConfig, CircuitBreakerState } from "./circuit-breaker.js";
+export { type CircuitState, type CircuitBreakerConfig, type CircuitBreakerState } from "./circuit-breaker.js";
 
 export interface ProviderRegistry {
   get(code: string): PaymentProvider;
