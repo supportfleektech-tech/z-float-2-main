@@ -25,6 +25,7 @@
     "@capacitor/ios": "^6.2.0",
     "@capacitor/splash-screen": "^6.0.0",
     "@capacitor/status-bar": "^6.0.0",
+    "@next/bundle-analyzer": "^16.4.5",
     "@types/node": "^20.14.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.5",
@@ -64,7 +65,6 @@
   },
   "devDependencies": {
     "@capacitor/cli": "6.2.0",
-    "@next/bundle-analyzer": "^16.4.5",
     "@playwright/test": "^1.47.0",
     "vitest": "^2.1.8"
   }
