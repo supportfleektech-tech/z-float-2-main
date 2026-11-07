@@ -8,7 +8,7 @@ import type { PaymentProvider } from "./types.js";
 
 export { type PaymentProvider } from "./types.js";
 export { type C2BConfirmation } from "./types.js";
-export { type CollectionProvider } from "./types.js";
+export { type CollectionProvider, isCollectionProvider } from "./types.js";
 export { type ProviderPaymentResult } from "./types.js";
 export { type ProviderPaymentInput } from "./types.js";
 export { type ProviderResultStatus } from "./types.js";
