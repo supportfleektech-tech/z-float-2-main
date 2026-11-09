@@ -17,10 +17,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.6",
     "@zfloat/config": "workspace:*",
     "@zfloat/money": "workspace:*",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

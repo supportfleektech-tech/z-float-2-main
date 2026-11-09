@@ -24,22 +24,22 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "dotenv": "^16.4.0",
+    "dotenv": "^18.0.9",
     "@types/pg": "^8.11.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.6",
     "@zfloat/auth": "workspace:*",
     "@zfloat/config": "workspace:*",
     "@zfloat/ledger": "workspace:*",
     "@zfloat/money": "workspace:*",
     "@zfloat/payments-core": "workspace:*",
     "@zfloat/providers": "workspace:^",
-    "drizzle-orm": "^0.36.4",
+    "drizzle-orm": "^0.45.4",
     "pg": "^8.13.1",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.9",
     "drizzle-kit": "^0.28.1",
     "tsx": "^4.19.2",
     "typescript": "^5.5.4",

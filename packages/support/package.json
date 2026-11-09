@@ -25,11 +25,11 @@
     "@zfloat/database": "workspace:*",
     "@zfloat/notifications": "workspace:*",
     "@zfloat/queue": "workspace:*",
-    "drizzle-orm": "^0.36.4"
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
     "vitest": "^2.1.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^18.0.9"
   }
 }
