@@ -14,16 +14,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.6",
     "@zfloat/auth": "workspace:*",
     "@zfloat/config": "workspace:*",
     "@zfloat/database": "workspace:*",
     "@zfloat/money": "workspace:*",
-    "drizzle-orm": "^0.36.4"
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
     "@zfloat/ledger": "workspace:*",
-    "dotenv": "^16.4.5",
+    "dotenv": "^18.0.9",
     "typescript": "^5.5.4",
     "vitest": "^2.1.0"
   }

@@ -14,7 +14,7 @@
     "@zfloat/config": "workspace:*",
     "@zfloat/database": "workspace:*",
     "@zfloat/payments-core": "workspace:*",
-    "dotenv": "^16.4.5",
+    "dotenv": "^18.0.9",
     "@zfloat/secrets": "workspace:*"
   },
   "devDependencies": {

@@ -19,8 +19,8 @@
   "dependencies": {
     "@zfloat/database": "workspace:*",
     "@zfloat/money": "workspace:*",
-    "drizzle-orm": "^0.36.4",
-    "zod": "^3.23.8"
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
